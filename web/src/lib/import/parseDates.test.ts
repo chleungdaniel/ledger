@@ -17,6 +17,13 @@ describe("resolveWalletDate", () => {
     expect(t.getTime()).toBeLessThan(REF.getTime());
   });
 
+  it("tolerates OCR spaces in weekday and 分鐘前", () => {
+    const t = resolveWalletDate("星期 二", REF)!;
+    expect(t.getDay()).toBe(2);
+    const m = resolveWalletDate("31 分 鐘 前", REF)!;
+    expect(m.getMinutes()).toBe(29);
+  });
+
   it("parses d/m/y", () => {
     const d = resolveWalletDate("26/9/2026", REF)!;
     expect(d.getFullYear()).toBe(2026);

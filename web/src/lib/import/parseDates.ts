@@ -9,9 +9,19 @@ const WEEKDAY_MAP: Record<string, number> = {
   六: 6,
 };
 
+/** Collapse OCR spacing noise before date parsing. */
+export function normalizeDateToken(line: string): string {
+  return line
+    .replace(/\s+/g, "")
+    .replace(/星\s*期/g, "星期")
+    .replace(/分\s*鐘\s*前/g, "分鐘前")
+    .replace(/小\s*時\s*前/g, "小時前")
+    .replace(/天\s*前/g, "天前");
+}
+
 /** Resolve Wallet-style relative / absolute date strings against `ref` (usually now). */
 export function resolveWalletDate(line: string, ref: Date): Date | null {
-  const t = line.trim();
+  const t = normalizeDateToken(line.trim());
   if (!t) return null;
 
   if (/今日|今天/.test(t)) return startOfMinute(ref);
@@ -22,21 +32,21 @@ export function resolveWalletDate(line: string, ref: Date): Date | null {
     return startOfMinute(d);
   }
 
-  const mins = t.match(/(\d+)\s*分鐘前/);
+  const mins = t.match(/(\d+)分鐘前/);
   if (mins) {
     const d = new Date(ref);
     d.setMinutes(d.getMinutes() - Number(mins[1]));
     return startOfMinute(d);
   }
 
-  const hours = t.match(/(\d+)\s*小時前/);
+  const hours = t.match(/(\d+)小時前/);
   if (hours) {
     const d = new Date(ref);
     d.setHours(d.getHours() - Number(hours[1]));
     return startOfMinute(d);
   }
 
-  const days = t.match(/(\d+)\s*天前/);
+  const days = t.match(/(\d+)天前/);
   if (days) {
     const d = new Date(ref);
     d.setDate(d.getDate() - Number(days[1]));
@@ -74,7 +84,7 @@ function startOfMinute(d: Date): Date {
 }
 
 export function isLikelyDateLine(line: string): boolean {
-  const t = line.trim();
+  const t = normalizeDateToken(line.trim());
   if (!t) return false;
   return (
     /今日|今天|昨日|昨天|分鐘前|小時前|天前|星期[日天一二三四五六]|\d{1,2}\/\d{1,2}\/\d{4}/.test(
