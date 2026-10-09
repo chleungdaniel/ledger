@@ -1,12 +1,14 @@
 const locale = "zh-Hant-HK";
 
 export function formatCurrency(amount: number, showSign = false): string {
+  const abs = Math.abs(amount);
   const formatted = new Intl.NumberFormat(locale, {
     style: "currency",
     currency: "HKD",
-    maximumFractionDigits: 2,
+    maximumFractionDigits: abs % 1 === 0 ? 0 : 2,
     minimumFractionDigits: 0,
-  }).format(amount);
+  }).format(abs);
+  if (amount < 0) return `-${formatted}`;
   if (showSign && amount > 0) return `+${formatted}`;
   return formatted;
 }

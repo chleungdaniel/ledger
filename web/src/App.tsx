@@ -41,6 +41,7 @@ export default function App() {
           >
             <span className="tab-bar__icon" aria-hidden>{t.icon}</span>
             <span className="tab-bar__label">{t.label}</span>
+            {tab === t.id && <span className="tab-bar__pill" aria-hidden />}
           </button>
         ))}
       </nav>
