@@ -54,7 +54,7 @@ test("記帳 v4：截圖匯入審核與深層連結", async ({ page }) => {
   await expect(page.getByTestId("home-page")).toBeVisible();
 });
 
-test("記帳 v3：青綠主題、報表每月/所有", async ({ page }) => {
+test("記帳 v4：銀色主題、報表每月/所有", async ({ page }) => {
   const now = new Date();
   const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 15, 12, 0);
 
