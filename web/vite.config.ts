@@ -9,7 +9,14 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["apple-touch-icon.png", "icons/*.png"],
+      includeAssets: [
+        "favicon.ico",
+        "favicon-32.png",
+        "apple-touch-icon.png",
+        "icon-master.svg",
+        "icon-maskable.svg",
+        "icons/*.png",
+      ],
       manifest: false,
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
