@@ -27,12 +27,12 @@ import { formatCurrency, formatMonthYear } from "../lib/format";
 import { useLedger } from "../store/LedgerContext";
 
 const PIE_COLORS = [
-  "#0d9488",
-  "#14b8a6",
-  "#2dd4bf",
-  "#34c759",
-  "#ff9f0a",
-  "#ff453a",
+  "#6b7280",
+  "#9ca3af",
+  "#4b5563",
+  "#d1d5db",
+  "#374151",
+  "#a8a29e",
 ];
 
 interface ReportsPageProps {
@@ -243,12 +243,12 @@ export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
                     name === "balance" ? "本月結餘" : "累計結餘",
                   ]}
                 />
-                <Bar dataKey="balance" name="balance" radius={[4, 4, 0, 0]} fill="var(--accent)" />
+                <Bar dataKey="balance" name="balance" radius={[4, 4, 0, 0]} fill="var(--chart-neutral)" />
                 <Line
                   type="monotone"
                   dataKey="cumulativeBalance"
                   name="cumulative"
-                  stroke="var(--accent-green)"
+                  stroke="var(--accent)"
                   strokeWidth={2}
                   dot={false}
                 />

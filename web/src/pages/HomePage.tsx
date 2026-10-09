@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { DeepLinkPayload } from "../lib/deeplink";
+import { suggestCategoryId } from "../lib/import/suggestCategory";
 import { BudgetProgress } from "../components/BudgetProgress";
 import { TransactionRow } from "../components/TransactionRow";
 import {
@@ -13,14 +15,20 @@ import {
 } from "../lib/format";
 import { useLedger } from "../store/LedgerContext";
 import type { Transaction } from "../types";
-import { TransactionFormPage } from "./TransactionFormPage";
+import { TransactionFormPage, type TransactionFormPreset } from "./TransactionFormPage";
 
 function shiftMonth(year: number, month: number, delta: number) {
   const d = new Date(year, month - 1 + delta, 1);
   return { year: d.getFullYear(), month: d.getMonth() + 1 };
 }
 
-export function HomePage() {
+interface HomePageProps {
+  onOpenImport: () => void;
+  deepLink: DeepLinkPayload | null;
+  onDeepLinkConsumed: () => void;
+}
+
+export function HomePage({ onOpenImport, deepLink, onDeepLinkConsumed }: HomePageProps) {
   const { loading, categories, transactions, budgets } = useLedger();
   const now = new Date();
   const current = yearMonthFromDate(now);
@@ -29,6 +37,28 @@ export function HomePage() {
 
   const [formType, setFormType] = useState<"expense" | "income" | null>(null);
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [formPreset, setFormPreset] = useState<TransactionFormPreset | undefined>();
+
+  useEffect(() => {
+    if (!deepLink?.openAdd || loading) return;
+    setFormType(deepLink.type);
+    setFormPreset({
+      type: deepLink.type,
+      amount: deepLink.amount,
+      note: deepLink.merchant,
+      date: deepLink.date,
+      categoryId: suggestCategoryId(
+        deepLink.merchant,
+        deepLink.merchant,
+        deepLink.type,
+        categories,
+        transactions,
+      ),
+      autoSave: deepLink.auto,
+      fromDeepLink: true,
+    });
+    onDeepLinkConsumed();
+  }, [deepLink, loading, onDeepLinkConsumed, categories, transactions]);
 
   const summary = useMemo(
     () => monthSummary(transactions, viewYear, viewMonth),
@@ -51,9 +81,11 @@ export function HomePage() {
       <TransactionFormPage
         initialType={formType ?? "expense"}
         transaction={editing ?? undefined}
+        preset={editing ? undefined : formPreset}
         onClose={() => {
           setFormType(null);
           setEditing(null);
+          setFormPreset(undefined);
         }}
       />
     );
@@ -151,12 +183,15 @@ export function HomePage() {
 
           <section className="section">
             <h2>快速記帳</h2>
-            <div className="quick-actions">
+            <div className="quick-actions quick-actions--triple">
               <button
                 type="button"
                 className="btn-quick expense"
                 data-testid="quick-expense"
-                onClick={() => setFormType("expense")}
+                onClick={() => {
+                  setFormPreset(undefined);
+                  setFormType("expense");
+                }}
               >
                 <span className="btn-quick__icon">−</span>
                 支出
@@ -165,10 +200,22 @@ export function HomePage() {
                 type="button"
                 className="btn-quick income"
                 data-testid="quick-income"
-                onClick={() => setFormType("income")}
+                onClick={() => {
+                  setFormPreset(undefined);
+                  setFormType("income");
+                }}
               >
                 <span className="btn-quick__icon">+</span>
                 收入
+              </button>
+              <button
+                type="button"
+                className="btn-quick import"
+                data-testid="quick-import"
+                onClick={onOpenImport}
+              >
+                <span className="btn-quick__icon">⎘</span>
+                匯入截圖
               </button>
             </div>
           </section>
