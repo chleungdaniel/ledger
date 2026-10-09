@@ -158,6 +158,9 @@ export function ScreenshotImportPage({ onClose, fixtureKey }: ScreenshotImportPa
                 <div className="import-row__main">
                   <strong>{row.merchant}</strong>
                   {row.isDuplicate && <span className="import-dup-badge">可能重複</span>}
+                  {row.parseWarning && (
+                    <span className="import-dup-badge">{row.parseWarning}</span>
+                  )}
                   <label className="field field--compact">
                     <span>金額 (HKD)</span>
                     <input

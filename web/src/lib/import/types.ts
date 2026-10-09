@@ -13,6 +13,9 @@ export interface ImportCandidate {
   categoryId: string | null;
   selected: boolean;
   isDuplicate: boolean;
+  /** OCR amount unreadable — row shown unchecked for manual fix. */
+  amountInvalid?: boolean;
+  parseWarning?: string;
 }
 
 export interface FxRates {
