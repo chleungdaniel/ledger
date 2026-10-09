@@ -13,6 +13,8 @@ export interface TransactionFormPreset {
   categoryId?: string | null;
   autoSave?: boolean;
   fromDeepLink?: boolean;
+  amountMissingBanner?: boolean;
+  debugRawParams?: string;
 }
 
 interface TransactionFormPageProps {
@@ -57,16 +59,34 @@ export function TransactionFormPage({
 
   const filtered = categories.filter((c) => c.type === type);
   const autoSaveOnce = useRef(false);
+  const amountInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
   }, []);
 
   useEffect(() => {
-    if (!filtered.some((c) => c.id === categoryId)) {
-      setCategoryId(filtered[0]?.id ?? "");
+    if (preset?.amountMissingBanner) {
+      const t = window.setTimeout(() => amountInputRef.current?.focus(), 80);
+      return () => window.clearTimeout(t);
     }
-  }, [type, filtered, categoryId]);
+  }, [preset?.amountMissingBanner]);
+
+  useEffect(() => {
+    if (
+      preset?.categoryId &&
+      filtered.some((c) => c.id === preset.categoryId)
+    ) {
+      setCategoryId(preset.categoryId);
+      return;
+    }
+    if (!filtered.some((c) => c.id === categoryId)) {
+      const other = filtered.find((c) =>
+        c.name === (type === "income" ? "其他收入" : "其他"),
+      );
+      setCategoryId(other?.id ?? filtered[0]?.id ?? "");
+    }
+  }, [type, filtered, categoryId, preset?.categoryId]);
 
   const title = transaction
     ? "編輯交易"
@@ -145,6 +165,21 @@ export function TransactionFormPage({
         </header>
 
         <div className="form-stack">
+          {preset?.amountMissingBanner && (
+            <div
+              className="deeplink-banner"
+              role="status"
+              data-testid="deeplink-missing-amount"
+            >
+              捷徑未傳入金額，請輸入
+            </div>
+          )}
+          {preset?.debugRawParams && (
+            <details className="deeplink-debug" data-testid="deeplink-raw-params">
+              <summary>收到的資料</summary>
+              <pre>{preset.debugRawParams}</pre>
+            </details>
+          )}
           <div className="segmented segmented--pill">
             {(["expense", "income"] as TransactionType[]).map((t) => (
               <button
@@ -164,12 +199,13 @@ export function TransactionFormPage({
             <div className="amount-input amount-input--hero">
               <span className="amount-input__prefix">HK$</span>
               <input
+                ref={amountInputRef}
                 inputMode="decimal"
                 placeholder="0"
                 value={amountText}
                 onChange={(e) => setAmountText(e.target.value)}
                 data-testid="tx-amount"
-                autoFocus
+                autoFocus={!preset?.amountMissingBanner}
               />
             </div>
             {preview && <p className="amount-preview">{preview}</p>}

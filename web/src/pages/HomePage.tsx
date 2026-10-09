@@ -45,20 +45,30 @@ export function HomePage({ onOpenImport, deepLink, onDeepLinkConsumed }: HomePag
   useEffect(() => {
     if (!deepLink?.openAdd || loading) return;
     setFormType(deepLink.type);
-    setFormPreset({
-      type: deepLink.type,
-      amount: deepLink.amount,
-      note: deepLink.merchant,
-      date: deepLink.date,
-      categoryId: suggestCategoryId(
+    const fallbackCat = categories.find(
+      (c) =>
+        c.type === deepLink.type &&
+        c.name === (deepLink.type === "income" ? "其他收入" : "其他"),
+    );
+    const suggested =
+      suggestCategoryId(
         deepLink.merchant,
         deepLink.merchant,
         deepLink.type,
         categories,
         transactions,
-      ),
-      autoSave: deepLink.auto,
+      ) ?? fallbackCat?.id ?? null;
+
+    setFormPreset({
+      type: deepLink.type,
+      amount: deepLink.amount,
+      note: deepLink.merchant,
+      date: deepLink.date ?? new Date().toISOString(),
+      categoryId: suggested,
+      autoSave: deepLink.auto && deepLink.amount != null && deepLink.amount > 0,
       fromDeepLink: true,
+      amountMissingBanner: deepLink.amountMissing,
+      debugRawParams: deepLink.rawParamsDebug,
     });
     onDeepLinkConsumed();
   }, [deepLink, loading, onDeepLinkConsumed, categories, transactions]);

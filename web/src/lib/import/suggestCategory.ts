@@ -1,7 +1,11 @@
 import type { Category, Transaction } from "../../types";
 
 const RULES: { pattern: RegExp; categoryName: string }[] = [
-  { pattern: /巴士|鐵路|車資|Uber|的士|出租|港鐵|MTR|交通/i, categoryName: "交通" },
+  {
+    pattern:
+      /Octopus|八達通|OCTOPUS|巴士|鐵路|車資|Uber|的士|出租|港鐵|MTR|KMB|九巴|城巴|新巴|交通|地鐵|輕鐵|tunnel|Tunnel/i,
+    categoryName: "交通",
+  },
   {
     pattern:
       /Five Guys|燒肉|minimelts|Vincenzo|Capuano|pizza|冰淇淋|餐|飯|咖啡|food|restaurant|麵|茶餐/i,
