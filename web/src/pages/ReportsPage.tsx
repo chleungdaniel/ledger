@@ -16,33 +16,72 @@ import {
 import { CategoryIcon } from "../components/CategoryIcon";
 import {
   expenseByCategory,
+  expenseByCategoryAllTime,
   monthBalanceTimeline,
   monthSummary,
+  type ReportPeriod,
+  summaryFromTransactions,
+  transactionsInYear,
 } from "../lib/analytics";
 import { formatCurrency, formatMonthYear } from "../lib/format";
 import { useLedger } from "../store/LedgerContext";
 
-const PIE_COLORS = ["#5e5ce6", "#34c759", "#ff9f0a", "#ff453a", "#bf5af2", "#64d2ff"];
+const PIE_COLORS = [
+  "#0d9488",
+  "#14b8a6",
+  "#2dd4bf",
+  "#34c759",
+  "#ff9f0a",
+  "#ff453a",
+];
 
-export function ReportsPage() {
+interface ReportsPageProps {
+  period: ReportPeriod;
+  onPeriodChange: (period: ReportPeriod) => void;
+}
+
+export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
   const { categories, transactions, budgets } = useLedger();
   const [monthDate, setMonthDate] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
+  const [reportYear, setReportYear] = useState(() => new Date().getFullYear());
 
   const [y, m] = monthDate.split("-").map(Number);
-  const summary = useMemo(
-    () => monthSummary(transactions, y, m),
-    [transactions, y, m],
-  );
-  const breakdown = useMemo(
-    () => expenseByCategory(transactions, categories, budgets, y, m),
-    [transactions, categories, budgets, y, m],
-  );
+
+  const scopedTransactions = useMemo(() => {
+    if (period === "month") {
+      return transactions.filter((t) => {
+        const d = new Date(t.date);
+        return d.getFullYear() === y && d.getMonth() + 1 === m;
+      });
+    }
+    if (period === "year") {
+      return transactionsInYear(transactions, reportYear);
+    }
+    return transactions;
+  }, [transactions, period, y, m, reportYear]);
+
+  const summary = useMemo(() => {
+    if (period === "month") return monthSummary(transactions, y, m);
+    return summaryFromTransactions(scopedTransactions);
+  }, [transactions, scopedTransactions, period, y, m]);
+
+  const breakdown = useMemo(() => {
+    if (period === "month") {
+      return expenseByCategory(transactions, categories, budgets, y, m);
+    }
+    if (period === "year") {
+      const expenseTxs = transactionsInYear(transactions, reportYear, "expense");
+      return expenseByCategoryAllTime(expenseTxs, categories);
+    }
+    return expenseByCategoryAllTime(transactions, categories);
+  }, [transactions, categories, budgets, period, y, m, reportYear]);
+
   const timeline = useMemo(
-    () => monthBalanceTimeline(transactions),
-    [transactions],
+    () => monthBalanceTimeline(scopedTransactions),
+    [scopedTransactions],
   );
 
   const barData = [
@@ -58,40 +97,107 @@ export function ReportsPage() {
   const latestCumulative =
     timeline.length > 0 ? timeline[timeline.length - 1].cumulativeBalance : 0;
 
+  const periodTitle =
+    period === "month"
+      ? "本月概覽"
+      : period === "year"
+        ? `${reportYear} 年概覽`
+        : "所有時間概覽";
+
+  const balanceLabel =
+    period === "month" ? "本月結餘" : period === "year" ? "本年結餘" : "總結餘";
+
+  const emptyExpenseHint =
+    period === "all"
+      ? "尚無支出記錄"
+      : period === "year"
+        ? `${reportYear} 年無支出`
+        : "本月無支出";
+
   return (
-    <div className="page" data-testid="reports-page">
+    <div className="page" data-testid="reports-page" data-report-period={period}>
       <header className="page-header">
         <h1>報表</h1>
         <p className="subtitle">趨勢與分類一覽</p>
       </header>
 
-      <label className="field pad-horizontal">
-        <span>報表月份</span>
-        <input
-          type="month"
-          value={monthDate}
-          onChange={(e) => setMonthDate(e.target.value)}
-          data-testid="report-month"
-        />
-      </label>
+      <div className="pad-horizontal">
+        <span className="field-label">期間</span>
+        <div className="segmented segmented--pill segmented--triple report-period">
+          <button
+            type="button"
+            className={period === "month" ? "active" : ""}
+            data-testid="report-period-month"
+            onClick={() => onPeriodChange("month")}
+          >
+            每月
+          </button>
+          <button
+            type="button"
+            className={period === "year" ? "active" : ""}
+            data-testid="report-period-year"
+            onClick={() => onPeriodChange("year")}
+          >
+            今年
+          </button>
+          <button
+            type="button"
+            className={period === "all" ? "active" : ""}
+            data-testid="report-period-all"
+            onClick={() => onPeriodChange("all")}
+          >
+            所有
+          </button>
+        </div>
+      </div>
+
+      {period === "month" && (
+        <label className="field pad-horizontal">
+          <span>報表月份</span>
+          <input
+            type="month"
+            value={monthDate}
+            onChange={(e) => setMonthDate(e.target.value)}
+            data-testid="report-month"
+          />
+        </label>
+      )}
+
+      {period === "year" && (
+        <label className="field pad-horizontal">
+          <span>報表年份</span>
+          <input
+            type="number"
+            min={2000}
+            max={2100}
+            value={reportYear}
+            onChange={(e) => setReportYear(Number(e.target.value))}
+            data-testid="report-year"
+          />
+        </label>
+      )}
 
       <section className="section">
-        <h2>本月概覽</h2>
+        <h2>{periodTitle}</h2>
         <div className="card card--soft">
           <div className="summary-lines">
             <div>
               <span>收入</span>
-              <strong className="income">{formatCurrency(summary.totalIncome)}</strong>
+              <strong className="income" data-testid="report-summary-income">
+                {formatCurrency(summary.totalIncome)}
+              </strong>
             </div>
             <div>
               <span>支出</span>
-              <strong>{formatCurrency(summary.totalExpense)}</strong>
+              <strong data-testid="report-summary-expense">
+                {formatCurrency(summary.totalExpense)}
+              </strong>
             </div>
             <div>
-              <span>本月結餘</span>
+              <span>{balanceLabel}</span>
               <strong
                 className={summary.balance >= 0 ? "income" : "over"}
-                data-testid="report-month-balance"
+                data-testid="report-summary-balance"
               >
                 {formatCurrency(summary.balance, true)}
               </strong>
@@ -114,10 +220,10 @@ export function ReportsPage() {
       </section>
 
       <section className="section">
-        <h2>每月結餘與累計</h2>
+        <h2>{period === "all" ? "每月結餘與累計" : "期間結餘趨勢"}</h2>
         <div className="card card--soft">
           <p className="report-cumulative-hint">
-            累計總結餘
+            {period === "all" ? "累計總結餘" : "期末累計"}
             <strong
               className={latestCumulative >= 0 ? "income" : "over"}
               data-testid="report-cumulative-balance"
@@ -169,7 +275,7 @@ export function ReportsPage() {
         <h2>支出分類</h2>
         {breakdown.length === 0 ? (
           <div className="empty-state">
-            <p>本月無支出</p>
+            <p>{emptyExpenseHint}</p>
             <p className="muted">有支出後會顯示分類比例圖。</p>
           </div>
         ) : (

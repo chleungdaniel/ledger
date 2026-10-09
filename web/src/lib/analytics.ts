@@ -22,6 +22,33 @@ export interface CategorySpend {
   budget: number | null;
 }
 
+export type ReportPeriod = "month" | "year" | "all";
+
+export function transactionsInYear(
+  transactions: Transaction[],
+  year: number,
+  type?: "expense" | "income",
+): Transaction[] {
+  return transactions
+    .filter((t) => new Date(t.date).getFullYear() === year)
+    .filter((t) => (type ? t.type === type : true))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+export function summaryFromTransactions(transactions: Transaction[]): MonthSummary {
+  let totalIncome = 0;
+  let totalExpense = 0;
+  for (const t of transactions) {
+    if (t.type === "income") totalIncome += t.amount;
+    else totalExpense += t.amount;
+  }
+  return {
+    totalIncome,
+    totalExpense,
+    balance: totalIncome - totalExpense,
+  };
+}
+
 export function transactionsInMonth(
   transactions: Transaction[],
   year: number,
@@ -78,14 +105,34 @@ export function expenseByCategory(
   month: number,
 ): CategorySpend[] {
   const expenseTxs = transactionsInMonth(transactions, year, month, "expense");
+  return expenseBreakdownFromExpenses(expenseTxs, categories, budgets, year, month);
+}
+
+export function expenseByCategoryAllTime(
+  transactions: Transaction[],
+  categories: Category[],
+): CategorySpend[] {
+  const expenseTxs = transactions.filter((t) => t.type === "expense");
+  return expenseBreakdownFromExpenses(expenseTxs, categories);
+}
+
+function expenseBreakdownFromExpenses(
+  expenseTxs: Transaction[],
+  categories: Category[],
+  budgets?: MonthlyBudget[],
+  year?: number,
+  month?: number,
+): CategorySpend[] {
   const spentMap = new Map<string, number>();
   for (const t of expenseTxs) {
     spentMap.set(t.categoryId, (spentMap.get(t.categoryId) ?? 0) + t.amount);
   }
   const budgetMap = new Map<string, number>();
-  for (const b of budgets) {
-    if (b.year === year && b.month === month && b.categoryId) {
-      budgetMap.set(b.categoryId, b.amount);
+  if (budgets && year != null && month != null) {
+    for (const b of budgets) {
+      if (b.year === year && b.month === month && b.categoryId) {
+        budgetMap.set(b.categoryId, b.amount);
+      }
     }
   }
   const result: CategorySpend[] = [];
