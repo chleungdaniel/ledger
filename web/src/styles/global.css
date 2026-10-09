@@ -1059,6 +1059,58 @@ body {
   letter-spacing: 0.04em;
 }
 
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 4px 0 8px;
+}
+
+.chart-legend--inline {
+  padding: 0 2px;
+}
+
+.chart-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 10px;
+}
+
+.chart-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.chart-swatch--line {
+  height: 3px;
+  width: 14px;
+  border-radius: 99px;
+  margin-right: 6px;
+}
+
+.chart-swatch--row {
+  width: 8px;
+  height: 28px;
+  border-radius: 4px;
+  margin-right: 0;
+}
+
+.report-row--category {
+  gap: 8px;
+}
+
+.chart-box--category-bars {
+  margin-top: 8px;
+}
+
 .import-page {
   min-height: 100dvh;
   padding-bottom: var(--safe-bottom);
