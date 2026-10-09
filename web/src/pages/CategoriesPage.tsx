@@ -51,7 +51,7 @@ export function CategoriesPage() {
         <h1>分類</h1>
       </header>
       <section className="section section--tight pad-horizontal">
-        <PwaSyncControls variant="button" />
+        <PwaSyncControls variant="import" />
       </section>
       {alert && (
         <div className="banner banner--warn" role="alert">

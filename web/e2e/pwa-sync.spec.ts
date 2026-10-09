@@ -11,7 +11,7 @@ async function addExpense(page: import("@playwright/test").Page, amount: string)
   await expect(page.getByTestId("home-page")).toBeVisible();
 }
 
-test("Safari → 主畫面 App 手動同步", async ({ browser, baseURL }) => {
+test("Safari → 主畫面 App 同步（一鍵複製／一鍵合併）", async ({ browser, baseURL }) => {
   const safari = await browser.newContext({
     ...devices["iPhone 14"],
     baseURL,
@@ -34,42 +34,48 @@ test("Safari → 主畫面 App 手動同步", async ({ browser, baseURL }) => {
 
   await safariPage.goto("./");
   await addExpense(safariPage, "88");
-  await expect(safariPage.getByTestId("pwa-sync-banner")).toBeVisible();
+  await expect(safariPage.getByTestId("pwa-sync-card")).toBeVisible();
+
+  await safariPage.emulateMedia({ colorScheme: "dark" });
   await safariPage.screenshot({
-    path: path.join(artifactsDir, "v7-pwa-sync-safari-banner.png"),
+    path: path.join(artifactsDir, "v8-sync-safari-card-dark.png"),
     fullPage: true,
   });
 
+  await safariPage.emulateMedia({ colorScheme: "light" });
   await safariPage.getByTestId("pwa-sync-copy").click();
-  await expect(safariPage.getByTestId("pwa-sync-export-sheet")).toBeVisible();
-  const code = await safariPage.getByTestId("pwa-sync-code-preview").inputValue();
+  await expect(safariPage.getByTestId("pwa-sync-export-toast")).toContainText("已複製");
+  await safariPage.screenshot({
+    path: path.join(artifactsDir, "v8-sync-safari-card-light.png"),
+    fullPage: true,
+  });
+
+  const code = await safariPage.evaluate(() => navigator.clipboard.readText());
   expect(code.startsWith("LEDGERSYNC1:")).toBe(true);
-  await safariPage.getByRole("button", { name: "稍後" }).click();
-  await expect(safariPage.getByTestId("pwa-sync-export-sheet")).toBeHidden();
+  await expect(safariPage.getByTestId("pwa-sync-card")).toBeHidden();
 
   await appPage.goto("./");
-  await appPage.getByTestId("pwa-sync-import").click();
-  await expect(appPage.getByTestId("pwa-sync-import-sheet")).toBeVisible();
-  await appPage.getByTestId("pwa-sync-paste").fill(code);
-  await appPage.getByTestId("pwa-sync-paste").blur();
-  await expect(appPage.getByTestId("pwa-sync-preview")).toContainText("1");
+  await appPage.emulateMedia({ colorScheme: "light" });
+  await appPage.getByTestId("pwa-sync-run").click();
+  await expect(appPage.getByTestId("pwa-sync-result-toast")).toContainText("已同步 1 筆");
+  await expect(appPage.getByRole("button", { name: /飲食.*88/ })).toBeVisible();
   await appPage.screenshot({
-    path: path.join(artifactsDir, "v7-pwa-sync-app-preview.png"),
+    path: path.join(artifactsDir, "v8-sync-app-result-light.png"),
     fullPage: true,
   });
 
-  await appPage.getByTestId("pwa-sync-confirm-import").click();
-  await expect(appPage.getByText("HK$88")).toBeVisible();
+  await appPage.getByTestId("pwa-sync-undo").click();
+  await expect(appPage.getByRole("button", { name: /飲食.*88/ })).toBeHidden();
 
-  await appPage.getByTestId("pwa-sync-import").click();
-  await appPage.getByTestId("pwa-sync-paste").fill(code);
-  await appPage.getByTestId("pwa-sync-confirm-import").click();
-  await expect(appPage.getByTestId("pwa-sync-message")).toContainText("沒有新交易");
+  await appPage.getByTestId("pwa-sync-run").click();
+  await expect(appPage.getByTestId("pwa-sync-result-toast")).toContainText("已同步 1 筆");
 
-  await safariPage.getByTestId("tab-categories").click();
-  await expect(safariPage.getByTestId("auto-record-help")).toBeVisible();
-  await safariPage.screenshot({
-    path: path.join(artifactsDir, "v7-pwa-sync-help.png"),
+  await appPage.getByTestId("pwa-sync-run").click();
+  await expect(appPage.getByTestId("pwa-sync-result-toast")).toContainText("沒有新交易");
+
+  await appPage.emulateMedia({ colorScheme: "dark" });
+  await appPage.screenshot({
+    path: path.join(artifactsDir, "v8-sync-app-result-dark.png"),
     fullPage: true,
   });
 

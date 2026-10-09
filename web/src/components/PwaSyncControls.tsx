@@ -1,289 +1,444 @@
-import { useMemo, useState } from "react";
-import { formatCurrency } from "../lib/format";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { isInBrowserTab, isStandalonePwa } from "../lib/runtimeContext";
+import { copySyncCodeForTransactions } from "../lib/pwaSync/exportFlow";
+import {
+  formatLastSyncLabel,
+  readLastSyncAt,
+  writeLastSyncAt,
+} from "../lib/pwaSync/lastSync";
 import {
   buildSyncPayload,
   decodeSyncPayloadAsync,
   encodeSyncPayloadAsync,
   listUnsyncedTransactions,
-  previewSyncPayload,
 } from "../lib/pwaSync";
 import { useLedger } from "../store/LedgerContext";
 
-type PanelMode = "export" | "import" | null;
+const LARGE_IMPORT_THRESHOLD = 20;
+
+type ToastKind = "export" | "import" | "deeplink" | null;
 
 interface PwaSyncControlsProps {
-  variant: "banner" | "button";
+  variant: "safari-card" | "import";
+  deepLinkToast?: boolean;
+  onDeepLinkToastDismiss?: () => void;
 }
 
-export function PwaSyncControls({ variant }: PwaSyncControlsProps) {
+export function PwaSyncControls({
+  variant,
+  deepLinkToast = false,
+  onDeepLinkToastDismiss,
+}: PwaSyncControlsProps) {
   const {
     categories,
     transactions,
     markTransactionsPwaExported,
-    removeTransactions,
     mergePwaSync,
+    undoPwaSyncMerge,
   } = useLedger();
-  const [panel, setPanel] = useState<PanelMode>(null);
-  const [pasteText, setPasteText] = useState("");
-  const [preview, setPreview] = useState<ReturnType<typeof previewSyncPayload> | null>(
-    null,
-  );
-  const [error, setError] = useState<string | null>(null);
+
+  const [toast, setToast] = useState<ToastKind>(null);
+  const [toastDetail, setToastDetail] = useState<string>("");
+  const [undoState, setUndoState] = useState<{
+    transactionIds: string[];
+    categoryIds: string[];
+  } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [removeAfterExport, setRemoveAfterExport] = useState(false);
-  const [copiedIds, setCopiedIds] = useState<string[]>([]);
-  const [lastCopyCode, setLastCopyCode] = useState<string | null>(null);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [largeConfirmOpen, setLargeConfirmOpen] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState<string | null>(null);
+  const [largePreviewCount, setLargePreviewCount] = useState(0);
+  const [lastSyncLabel, setLastSyncLabel] = useState<string | null>(() => {
+    const d = readLastSyncAt();
+    return d ? formatLastSyncLabel(d) : null;
+  });
 
   const unsynced = useMemo(
     () => listUnsyncedTransactions(transactions),
     [transactions],
   );
-  const inBrowser = isInBrowserTab();
-  const inStandalone = isStandalonePwa();
 
-  const showExportBanner = inBrowser && unsynced.length > 0 && variant === "banner";
-  const showImportButton =
-    (inStandalone || inBrowser) && variant === "button";
+  const showSafariCard =
+    variant === "safari-card" && isInBrowserTab() && unsynced.length > 0;
+  const showImport = variant === "import" && (isStandalonePwa() || isInBrowserTab());
 
-  async function copyUnsyncedCode() {
-    setError(null);
+  const dismissToast = useCallback(() => {
+    setToast(null);
+    setToastDetail("");
+    onDeepLinkToastDismiss?.();
+  }, [onDeepLinkToastDismiss]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(dismissToast, toast === "import" ? 8000 : 5000);
+    return () => window.clearTimeout(t);
+  }, [toast, dismissToast]);
+
+  useEffect(() => {
+    if (deepLinkToast && isInBrowserTab()) {
+      setToast("deeplink");
+    }
+  }, [deepLinkToast]);
+
+  const copyAndMark = useCallback(
+    async (toExport: typeof unsynced) => {
+      if (toExport.length === 0) return;
+      setBusy(true);
+      try {
+        await copySyncCodeForTransactions(
+          transactions,
+          categories,
+          toExport,
+          markTransactionsPwaExported,
+        );
+        setToast("export");
+        setToastDetail("");
+        onDeepLinkToastDismiss?.();
+      } catch {
+        setToastDetail("無法複製到剪貼簿，請再試一次。");
+        setToast("export");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [
+      categories,
+      markTransactionsPwaExported,
+      onDeepLinkToastDismiss,
+      transactions,
+    ],
+  );
+
+  async function recopyAll() {
+    if (transactions.length === 0) return;
     setBusy(true);
     try {
-      const payload = buildSyncPayload(transactions, categories, unsynced);
+      const payload = buildSyncPayload(transactions, categories, transactions);
       const code = await encodeSyncPayloadAsync(payload);
       await navigator.clipboard.writeText(code);
-      setCopiedIds(unsynced.map((t) => t.id));
-      setLastCopyCode(code);
-      setPanel("export");
+      setToast("export");
+      setToastDetail("");
     } catch {
-      setError("無法複製到剪貼簿，請再試一次。");
+      setToastDetail("無法複製，請再試一次。");
+      setToast("export");
     } finally {
       setBusy(false);
     }
   }
 
-  async function confirmExported() {
-    if (copiedIds.length === 0) return;
+  async function applyMerge(code: string) {
+    const payload = await decodeSyncPayloadAsync(code);
+    const result = await mergePwaSync(payload);
+    writeLastSyncAt();
+    setLastSyncLabel(formatLastSyncLabel(new Date()));
+    setUndoState({
+      transactionIds: result.addedTransactionIds,
+      categoryIds: result.addedCategoryIds,
+    });
+    setPasteOpen(false);
+    setLargeConfirmOpen(false);
+    setPendingPayload(null);
+    setPasteText("");
+    setToast("import");
+    setToastDetail(
+      result.added > 0
+        ? `已同步 ${result.added} 筆（略過 ${result.skipped} 筆重複）`
+        : `沒有新交易（${result.skipped} 筆重複）`,
+    );
+    return result;
+  }
+
+  async function runImport() {
     setBusy(true);
+    setToastDetail("");
     try {
-      await markTransactionsPwaExported(copiedIds);
-      if (removeAfterExport) {
-        await removeTransactions(copiedIds);
+      let code: string;
+      try {
+        code = await navigator.clipboard.readText();
+      } catch {
+        setPasteOpen(true);
+        return;
       }
-      setCopiedIds([]);
-      setPanel(null);
-      setRemoveAfterExport(false);
+      const trimmed = code.trim();
+      if (!trimmed.startsWith("LEDGERSYNC1:")) {
+        setPasteOpen(true);
+        return;
+      }
+      const payload = await decodeSyncPayloadAsync(trimmed);
+      if (payload.transactions.length > LARGE_IMPORT_THRESHOLD) {
+        setPendingPayload(trimmed);
+        setLargePreviewCount(payload.transactions.length);
+        setLargeConfirmOpen(true);
+        return;
+      }
+      await applyMerge(trimmed);
+    } catch {
+      setPasteOpen(true);
     } finally {
       setBusy(false);
     }
   }
 
-  async function readClipboardForImport() {
-    setError(null);
-    try {
-      const text = await navigator.clipboard.readText();
-      setPasteText(text);
-      await parseImportText(text);
-    } catch {
-      setPanel("import");
-    }
-  }
-
-  async function parseImportText(text: string) {
-    setError(null);
-    try {
-      const payload = await decodeSyncPayloadAsync(text);
-      setPreview(previewSyncPayload(payload));
-      setPasteText(text);
-      setPanel("import");
-    } catch {
-      setError("同步碼無效或已損壞，請確認已完整複製。");
-      setPreview(null);
-    }
-  }
-
-  async function confirmImport() {
+  async function confirmPasteMerge() {
     if (!pasteText.trim()) return;
     setBusy(true);
-    setError(null);
     try {
-      const payload = await decodeSyncPayloadAsync(pasteText);
-      const result = await mergePwaSync(payload);
-      setPanel(null);
-      setPasteText("");
-      setPreview(null);
-      setError(
-        result.added > 0
-          ? `已合併 ${result.added} 筆（略過 ${result.skipped} 筆重複）。`
-          : `沒有新交易（${result.skipped} 筆已存在）。`,
-      );
-      window.setTimeout(() => setError(null), 4000);
+      await applyMerge(pasteText.trim());
     } catch {
-      setError("合併失敗，請再試一次。");
+      setToastDetail("同步碼無效，請確認已完整複製。");
+      setToast("import");
     } finally {
       setBusy(false);
     }
   }
 
-  if (!showExportBanner && !showImportButton && variant === "banner") {
-    return null;
+  async function confirmLargeMerge() {
+    if (!pendingPayload) return;
+    setBusy(true);
+    try {
+      await applyMerge(pendingPayload);
+    } catch {
+      setToastDetail("合併失敗，請再試一次。");
+      setToast("import");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function undoLastMerge() {
+    if (!undoState) return;
+    await undoPwaSyncMerge(undoState.transactionIds, undoState.categoryIds);
+    setUndoState(null);
+    dismissToast();
+  }
+
+  const toastLayer = (
+    <PwaSyncToastLayer
+      toast={toast}
+      toastDetail={toastDetail}
+      undoState={undoState}
+      onDismiss={dismissToast}
+      onUndo={() => void undoLastMerge()}
+      onDeepLinkCopy={() => void copyAndMark(unsynced)}
+    />
+  );
+
+  if (!showSafariCard && !showImport) {
+    return toastLayer;
   }
 
   return (
     <>
-      {showExportBanner && (
-        <div className="banner banner--sync" data-testid="pwa-sync-banner">
-          <div className="banner--sync__text">
-            有 <strong>{unsynced.length}</strong> 筆未同步到主畫面 App
-          </div>
-          <button
-            type="button"
-            className="btn-secondary btn-secondary--compact"
-            data-testid="pwa-sync-copy"
-            disabled={busy}
-            onClick={() => void copyUnsyncedCode()}
-          >
-            複製同步碼
-          </button>
-        </div>
-      )}
-
-      {showImportButton && (
-        <div className={variant === "button" ? "pwa-sync-actions" : undefined}>
-          {unsynced.length > 0 && (
+      {showSafariCard && (
+        <section className="pad-horizontal" data-testid="pwa-sync-card">
+          <div className="sync-card">
+            <div className="sync-card__body">
+              <span className="sync-card__icon" aria-hidden>⇄</span>
+              <div>
+                <p className="sync-card__title">
+                  有 <strong>{unsynced.length}</strong> 筆未同步
+                </p>
+                <p className="sync-card__hint muted">複製後到主畫面 App 按「同步」</p>
+              </div>
+            </div>
             <button
               type="button"
-              className="btn-secondary"
-              data-testid="pwa-sync-copy-standalone"
+              className="sync-card__cta"
+              data-testid="pwa-sync-copy"
               disabled={busy}
-              onClick={() => void copyUnsyncedCode()}
+              onClick={() => void copyAndMark(unsynced)}
             >
+              <span className="sync-card__cta-icon" aria-hidden>⎘</span>
               複製同步碼
             </button>
-          )}
+            <button
+              type="button"
+              className="sync-card__link"
+              data-testid="pwa-sync-recopy-all"
+              disabled={busy || transactions.length === 0}
+              onClick={() => void recopyAll()}
+            >
+              重新複製全部
+            </button>
+          </div>
+        </section>
+      )}
+
+      {showImport && (
+        <div className="sync-import-wrap">
           <button
             type="button"
-            className="btn-secondary"
-            data-testid="pwa-sync-import"
+            className="sync-import-btn"
+            data-testid="pwa-sync-run"
             disabled={busy}
-            onClick={() => void readClipboardForImport()}
+            onClick={() => void runImport()}
           >
-            同步 Safari 記錄
+            <span className="sync-import-btn__icon" aria-hidden>⇄</span>
+            同步
           </button>
+          {lastSyncLabel && isStandalonePwa() && (
+            <p className="sync-import-meta muted" data-testid="pwa-sync-last">
+              {lastSyncLabel}
+            </p>
+          )}
         </div>
       )}
 
-      {error && (
-        <p className="hint hint--sync pad-horizontal" role="alert" data-testid="pwa-sync-message">
-          {error}
-        </p>
-      )}
-
-      {panel === "export" && (
-        <div className="sync-sheet" role="dialog" aria-modal="true" data-testid="pwa-sync-export-sheet">
+      {pasteOpen && (
+        <div
+          className="sync-sheet"
+          role="dialog"
+          aria-modal="true"
+          data-testid="pwa-sync-paste-sheet"
+        >
           <div className="sync-sheet__panel">
-            <h2>同步碼已複製</h2>
-            <p className="muted">
-              請在主畫面 App 點「同步 Safari 記錄」，或於 Safari 貼上此碼（雙向皆可）。
-            </p>
-            {lastCopyCode && (
-              <textarea
-                className="sync-sheet__code"
-                readOnly
-                rows={3}
-                value={lastCopyCode}
-                data-testid="pwa-sync-code-preview"
-              />
-            )}
-            <label className="sync-sheet__check">
-              <input
-                type="checkbox"
-                checked={removeAfterExport}
-                onChange={(e) => setRemoveAfterExport(e.target.checked)}
-              />
-              標記後從此瀏覽器刪除這些交易
-            </label>
+            <h2>貼上同步碼</h2>
+            <p className="muted">無法讀取剪貼簿時，請在 Safari 複製後貼到下方：</p>
+            <textarea
+              className="sync-sheet__code"
+              rows={4}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder="LEDGERSYNC1:…"
+              data-testid="pwa-sync-paste"
+            />
             <div className="sync-sheet__actions">
-              <button type="button" className="btn-text" onClick={() => setPanel(null)}>
-                稍後
+              <button type="button" className="btn-text" onClick={() => setPasteOpen(false)}>
+                取消
               </button>
               <button
                 type="button"
                 className="btn-primary"
-                data-testid="pwa-sync-mark-exported"
-                disabled={busy}
-                onClick={() => void confirmExported()}
+                data-testid="pwa-sync-paste-confirm"
+                disabled={busy || !pasteText.trim()}
+                onClick={() => void confirmPasteMerge()}
               >
-                已貼上，標記為已同步
+                同步
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {panel === "import" && (
-        <div className="sync-sheet" role="dialog" aria-modal="true" data-testid="pwa-sync-import-sheet">
+      {largeConfirmOpen && pendingPayload && (
+        <div
+          className="sync-sheet"
+          role="dialog"
+          aria-modal="true"
+          data-testid="pwa-sync-large-confirm"
+        >
           <div className="sync-sheet__panel">
-            <h2>合併同步記錄</h2>
-            <p className="muted">若無法自動讀取剪貼簿，請貼上同步碼：</p>
-            <textarea
-              className="sync-sheet__code"
-              rows={4}
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-              onBlur={() => pasteText && void parseImportText(pasteText)}
-              placeholder="LEDGERSYNC1:…"
-              data-testid="pwa-sync-paste"
-            />
-            {preview && (
-              <p className="sync-sheet__preview" data-testid="pwa-sync-preview">
-                將合併 <strong>{preview.count}</strong> 筆 · 支出{" "}
-                {formatCurrency(preview.totalExpense)} · 收入{" "}
-                {formatCurrency(preview.totalIncome)}
-              </p>
-            )}
+            <h2>確認同步</h2>
+            <p className="sync-sheet__preview" data-testid="pwa-sync-preview">
+              將合併 <strong>{largePreviewCount}</strong> 筆記錄，是否繼續？
+            </p>
             <div className="sync-sheet__actions">
-              <button type="button" className="btn-text" onClick={() => setPanel(null)}>
+              <button
+                type="button"
+                className="btn-text"
+                onClick={() => {
+                  setLargeConfirmOpen(false);
+                  setPendingPayload(null);
+                }}
+              >
                 取消
               </button>
               <button
                 type="button"
                 className="btn-primary"
                 data-testid="pwa-sync-confirm-import"
-                disabled={busy || !pasteText.trim()}
-                onClick={() => void confirmImport()}
+                disabled={busy}
+                onClick={() => void confirmLargeMerge()}
               >
-                確認合併
+                確認同步
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {toastLayer}
     </>
   );
 }
 
-/** Compact toast after Shortcuts auto-save in Safari. */
-export function PwaSyncDeepLinkToast({
-  visible,
+function PwaSyncToastLayer({
+  toast,
+  toastDetail,
+  undoState,
   onDismiss,
-  onCopy,
+  onUndo,
+  onDeepLinkCopy,
 }: {
-  visible: boolean;
+  toast: ToastKind;
+  toastDetail: string;
+  undoState: { transactionIds: string[]; categoryIds: string[] } | null;
   onDismiss: () => void;
-  onCopy: () => void;
+  onUndo: () => void;
+  onDeepLinkCopy: () => void;
 }) {
-  if (!visible || !isInBrowserTab()) return null;
-  return (
-    <div className="toast toast--sync" role="status" data-testid="pwa-sync-deeplink-toast">
-      <span>已儲存到 Safari</span>
-      <button type="button" className="btn-text btn-text--primary" onClick={onCopy}>
-        複製同步碼
-      </button>
-      <button type="button" className="btn-text" aria-label="關閉" onClick={onDismiss}>
-        ✕
-      </button>
-    </div>
-  );
+  if (toast === "export") {
+    return (
+      <div
+        className="toast toast--sync toast--success"
+        role="status"
+        data-testid="pwa-sync-export-toast"
+      >
+        <span>
+          {toastDetail || "已複製！去主畫面 App 按「同步」"}
+        </span>
+        <button type="button" className="btn-text" aria-label="關閉" onClick={onDismiss}>
+          ✕
+        </button>
+      </div>
+    );
+  }
+
+  if (toast === "import") {
+    return (
+      <div
+        className="toast toast--sync toast--success"
+        role="status"
+        data-testid="pwa-sync-result-toast"
+      >
+        <span>{toastDetail || "同步完成"}</span>
+        {undoState && undoState.transactionIds.length > 0 && (
+          <button
+            type="button"
+            className="btn-text btn-text--primary"
+            data-testid="pwa-sync-undo"
+            onClick={onUndo}
+          >
+            復原
+          </button>
+        )}
+        <button type="button" className="btn-text" aria-label="關閉" onClick={onDismiss}>
+          ✕
+        </button>
+      </div>
+    );
+  }
+
+  if (toast === "deeplink") {
+    return (
+      <div className="toast toast--sync" role="status" data-testid="pwa-sync-deeplink-toast">
+        <span>已儲存到 Safari</span>
+        <button
+          type="button"
+          className="btn-text btn-text--primary"
+          data-testid="pwa-sync-deeplink-copy"
+          onClick={onDeepLinkCopy}
+        >
+          複製同步碼
+        </button>
+        <button type="button" className="btn-text" aria-label="關閉" onClick={onDismiss}>
+          ✕
+        </button>
+      </div>
+    );
+  }
+
+  return null;
 }
+

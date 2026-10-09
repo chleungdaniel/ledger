@@ -50,7 +50,13 @@ interface LedgerState {
   importData: (backup: LedgerBackup) => Promise<void>;
   markTransactionsPwaExported: (ids: string[]) => Promise<void>;
   removeTransactions: (ids: string[]) => Promise<void>;
-  mergePwaSync: (payload: SyncPayload) => Promise<{ added: number; skipped: number }>;
+  mergePwaSync: (payload: SyncPayload) => Promise<{
+    added: number;
+    skipped: number;
+    addedTransactionIds: string[];
+    addedCategoryIds: string[];
+  }>;
+  undoPwaSyncMerge: (transactionIds: string[], categoryIds: string[]) => Promise<void>;
 }
 
 const LedgerContext = createContext<LedgerState | null>(null);
@@ -215,16 +221,45 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       const result = mergeSyncPayload(categories, transactions, payload);
       const oldCatIds = new Set(categories.map((c) => c.id));
       const oldTxIds = new Set(transactions.map((t) => t.id));
+      const addedCategoryIds: string[] = [];
+      const addedTransactionIds: string[] = [];
       for (const c of result.categories) {
-        if (!oldCatIds.has(c.id)) await putCategory(c);
+        if (!oldCatIds.has(c.id)) {
+          await putCategory(c);
+          addedCategoryIds.push(c.id);
+        }
       }
       for (const t of result.transactions) {
-        if (!oldTxIds.has(t.id)) await putTransaction(t);
+        if (!oldTxIds.has(t.id)) {
+          await putTransaction(t);
+          addedTransactionIds.push(t.id);
+        }
       }
       await refresh();
-      return { added: result.added, skipped: result.skipped };
+      return {
+        added: result.added,
+        skipped: result.skipped,
+        addedTransactionIds,
+        addedCategoryIds,
+      };
     },
     [categories, refresh, transactions],
+  );
+
+  const undoPwaSyncMerge = useCallback(
+    async (transactionIds: string[], categoryIds: string[]) => {
+      for (const id of transactionIds) {
+        await deleteTransaction(id);
+      }
+      await refresh();
+      const data = await loadAllData();
+      for (const id of categoryIds) {
+        const inUse = data.transactions.some((t) => t.categoryId === id);
+        if (!inUse) await deleteCategory(id);
+      }
+      await refresh();
+    },
+    [refresh],
   );
 
   const value = useMemo(
@@ -245,6 +280,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       markTransactionsPwaExported,
       removeTransactions,
       mergePwaSync,
+      undoPwaSyncMerge,
     }),
     [
       loading,
@@ -263,6 +299,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       markTransactionsPwaExported,
       removeTransactions,
       mergePwaSync,
+      undoPwaSyncMerge,
     ],
   );
 
