@@ -3,7 +3,7 @@ export const CATEGORY_COLORS: Record<string, { bg: string; fg: string }> = {
   "fork-knife": { bg: "#ff6b6b33", fg: "#ff6b6b" },
   car: { bg: "#4dabf733", fg: "#339af0" },
   house: { bg: "#ffa94d33", fg: "#f76707" },
-  home: { bg: "#99f6e433", fg: "#0d9488" },
+  home: { bg: "#d1d5db55", fg: "#4b5563" },
   bag: { bg: "#ff922b33", fg: "#e8590c" },
   game: { bg: "#67e8f933", fg: "#0891b2" },
   medical: { bg: "#63e6be33", fg: "#12b886" },
