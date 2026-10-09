@@ -13,16 +13,8 @@ import {
   formatMonthYear,
   yearMonthFromDate,
 } from "../lib/format";
-import {
-  PwaSyncControls,
-  PwaSyncDeepLinkToast,
-} from "../components/PwaSyncControls";
-import { isInBrowserTab } from "../lib/runtimeContext";
-import {
-  buildSyncPayload,
-  encodeSyncPayloadAsync,
-  listUnsyncedTransactions,
-} from "../lib/pwaSync";
+import { PwaSyncControls } from "../components/PwaSyncControls";
+import { isInBrowserTab, isStandalonePwa } from "../lib/runtimeContext";
 import { useLedger } from "../store/LedgerContext";
 import type { Transaction } from "../types";
 import { TransactionFormPage, type TransactionFormPreset } from "./TransactionFormPage";
@@ -145,23 +137,10 @@ export function HomePage({ onOpenImport, deepLink, onDeepLinkConsumed }: HomePag
         </div>
       </header>
 
-      <PwaSyncControls variant="banner" />
-      <div className="pad-horizontal pwa-sync-home-row">
-        <PwaSyncControls variant="button" />
-      </div>
-      <PwaSyncDeepLinkToast
-        visible={deepLinkToast}
-        onDismiss={() => setDeepLinkToast(false)}
-        onCopy={() => {
-          void (async () => {
-            const unsynced = listUnsyncedTransactions(transactions);
-            if (unsynced.length === 0) return;
-            const payload = buildSyncPayload(transactions, categories, unsynced);
-            const code = await encodeSyncPayloadAsync(payload);
-            await navigator.clipboard.writeText(code);
-            setDeepLinkToast(false);
-          })();
-        }}
+      <PwaSyncControls
+        variant="safari-card"
+        deepLinkToast={deepLinkToast}
+        onDeepLinkToastDismiss={() => setDeepLinkToast(false)}
       />
 
       {loading ? (
@@ -218,6 +197,9 @@ export function HomePage({ onOpenImport, deepLink, onDeepLinkConsumed }: HomePag
 
           <section className="section">
             <h2>快速記帳</h2>
+            {isStandalonePwa() && (
+              <PwaSyncControls variant="import" />
+            )}
             <div className="quick-actions quick-actions--triple">
               <button
                 type="button"

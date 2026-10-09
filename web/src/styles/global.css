@@ -1198,32 +1198,110 @@ body {
   font-size: 15px;
 }
 
-.banner--sync {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 10px;
-  background: color-mix(in srgb, var(--accent) 14%, var(--bg-elevated));
+.sync-card {
+  margin: 8px 0 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--bg-elevated);
   border: 1px solid var(--separator);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
-.banner--sync__text {
-  line-height: 1.4;
-}
-
-.btn-secondary--compact {
-  align-self: flex-start;
-  padding: 8px 14px;
-  font-size: 14px;
-}
-
-.pwa-sync-actions {
+.sync-card__body {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
 }
 
-.pwa-sync-home-row {
-  margin-bottom: 4px;
+.sync-card__icon {
+  font-size: 22px;
+  line-height: 1;
+  opacity: 0.75;
+}
+
+.sync-card__title {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.sync-card__hint {
+  margin: 0;
+  font-size: 13px;
+}
+
+.sync-card__cta {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent) 22%, var(--bg-elevated)),
+    color-mix(in srgb, var(--accent) 10%, var(--bg-elevated))
+  );
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--separator));
+}
+
+.sync-card__cta-icon {
+  font-size: 18px;
+}
+
+.sync-card__link {
+  display: block;
+  margin: 10px auto 0;
+  padding: 4px 8px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.sync-import-wrap {
+  margin-bottom: 12px;
+}
+
+.sync-import-btn {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--separator);
+  background: var(--bg-elevated);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.sync-import-btn__icon {
+  font-size: 18px;
+  opacity: 0.85;
+}
+
+.sync-import-meta {
+  margin: 6px 0 0;
+  font-size: 12px;
+  text-align: center;
+}
+
+.toast--success {
+  border-color: color-mix(in srgb, var(--income) 40%, var(--separator));
 }
 
 .hint--sync {

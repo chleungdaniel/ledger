@@ -44,8 +44,10 @@ export function AutoRecordHelpPage() {
           <strong>加入主畫面</strong>的獨立 App 分開。若要讓主畫面 App 看到 Safari 裡的記錄：
         </p>
         <ol className="help-steps">
-          <li>在 Safari 打開記帳，首頁會顯示未同步筆數，點 <strong>複製同步碼</strong>。</li>
-          <li>打開主畫面 App，點 <strong>同步 Safari 記錄</strong>（首頁或分類），確認合併。</li>
+          <li>
+            在 Safari 打開記帳，點卡片上的 <strong>複製同步碼</strong>（會自動標記已匯出）。
+          </li>
+          <li>打開主畫面 App，在「快速記帳」上方點一次 <strong>同步</strong> 即可合併。</li>
         </ol>
         <p className="hint">
           亦可只在 Safari 使用、不加入主畫面。同步為手動複製／貼上，不經伺服器。
