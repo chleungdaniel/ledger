@@ -27,6 +27,13 @@ async function addTx(
   await expect(page.getByTestId("home-page")).toBeVisible();
 }
 
+async function barPixelHeight(
+  locator: import("@playwright/test").Locator,
+): Promise<number> {
+  const box = await locator.boundingBox();
+  return box?.height ?? 0;
+}
+
 test("報表彩色圖表截圖（每月 / 所有，淺色與深色）", async ({ page }) => {
   const now = new Date();
   const prev = new Date(now.getFullYear(), now.getMonth() - 1, 12, 12, 0);
@@ -64,6 +71,37 @@ test("報表彩色圖表截圖（每月 / 所有，淺色與深色）", async ({
 
   await page.getByTestId("report-period-all").click();
   await expect(page.getByTestId("report-balance-chart")).toBeVisible();
+
+  const incomeText = await page.getByTestId("report-summary-income").innerText();
+  const expenseText = await page.getByTestId("report-summary-expense").innerText();
+  const parseMoney = (s: string) =>
+    Number.parseFloat(s.replace(/[^\d.-]/g, "").replace(/,/g, ""));
+  const totalIncome = parseMoney(incomeText);
+  const totalExpense = parseMoney(expenseText);
+  expect(totalExpense).toBeGreaterThan(totalIncome);
+
+  const overviewBars = page.getByTestId("report-bar-chart").locator(".recharts-bar-rectangle");
+  await expect(overviewBars).toHaveCount(2);
+  const incomeBarH = await barPixelHeight(overviewBars.nth(0));
+  const expenseBarH = await barPixelHeight(overviewBars.nth(1));
+  expect(expenseBarH).toBeGreaterThan(incomeBarH);
+
+  const timelineMonths = Number(
+    await page.getByTestId("report-balance-chart").getAttribute("data-timeline-months"),
+  );
+  expect(timelineMonths).toBeGreaterThanOrEqual(3);
+  const balanceBars = page.getByTestId("report-balance-chart").locator(".recharts-bar-rectangle");
+  await expect(balanceBars).toHaveCount(timelineMonths);
+
+  const allPie = page.getByTestId("report-pie-chart");
+  const categoryCount = Number(await allPie.getAttribute("data-category-count"));
+  expect(categoryCount).toBe(4);
+  await expect(allPie.locator(".recharts-pie-sector")).toHaveCount(4);
+
+  const allCatChart = page.getByTestId("report-category-bar-chart");
+  await expect(allCatChart.locator(".recharts-bar-rectangle")).toHaveCount(4);
+
+  await expect(page.locator(".recharts-default-legend")).toHaveCount(0);
 
   await page.emulateMedia({ colorScheme: "light" });
   await page.screenshot({

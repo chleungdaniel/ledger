@@ -1,14 +1,14 @@
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
   ComposedChart,
-  Legend,
   Line,
   Pie,
   PieChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -35,12 +35,15 @@ import {
 import { formatCurrency, formatMonthYear } from "../lib/format";
 import { useLedger } from "../store/LedgerContext";
 
+const CHART_ANIMATION = false;
+
 interface ReportsPageProps {
   period: ReportPeriod;
   onPeriodChange: (period: ReportPeriod) => void;
 }
 
 export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
+  const chartUid = useId().replace(/:/g, "");
   const { categories, transactions, budgets } = useLedger();
   const [monthDate, setMonthDate] = useState(() => {
     const d = new Date();
@@ -76,7 +79,8 @@ export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
       const expenseTxs = transactionsInYear(transactions, reportYear, "expense");
       return expenseByCategoryAllTime(expenseTxs, categories);
     }
-    return expenseByCategoryAllTime(transactions, categories);
+    const expenseTxs = transactions.filter((t) => t.type === "expense");
+    return expenseByCategoryAllTime(expenseTxs, categories);
   }, [transactions, categories, budgets, period, y, m, reportYear]);
 
   const timeline = useMemo(
@@ -84,9 +88,20 @@ export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
     [scopedTransactions],
   );
 
+  const incomeGradId = `incomeGrad-${chartUid}`;
+  const expenseGradId = `expenseGrad-${chartUid}`;
+
   const barData = [
-    { name: "收入", value: summary.totalIncome, fill: chartIncomeColor() },
-    { name: "支出", value: summary.totalExpense, fill: chartExpenseColor() },
+    {
+      name: "收入",
+      value: summary.totalIncome,
+      fill: `url(#${incomeGradId})`,
+    },
+    {
+      name: "支出",
+      value: summary.totalExpense,
+      fill: `url(#${expenseGradId})`,
+    },
   ];
 
   const pieData = breakdown.map((item, i) => ({
@@ -99,6 +114,12 @@ export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
     name: item.category.name,
     spent: item.spent,
     fill: colorForCategory(item.category.id, i),
+  }));
+
+  const timelineChartData = timeline.map((row) => ({
+    ...row,
+    balanceFill:
+      row.balance >= 0 ? chartPositiveBarColor() : chartNegativeBarColor(),
   }));
 
   const latestCumulative =
@@ -223,13 +244,13 @@ export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
           </div>
           <div className="chart-box" data-testid="report-bar-chart">
             <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={barData}>
+              <BarChart data={barData} barCategoryGap="28%">
                 <defs>
-                  <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id={incomeGradId} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#4ade80" />
                     <stop offset="100%" stopColor={chartIncomeColor()} />
                   </linearGradient>
-                  <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id={expenseGradId} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#fda4af" />
                     <stop offset="100%" stopColor={chartExpenseColor()} />
                   </linearGradient>
@@ -237,9 +258,14 @@ export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
                 <XAxis dataKey="name" tick={{ fontSize: 12, fill: "var(--text-secondary)" }} />
                 <YAxis tickFormatter={(v) => `$${v}`} width={48} tick={{ fontSize: 11, fill: "var(--text-secondary)" }} />
                 <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={tooltipStyle} />
-                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                  <Cell fill="url(#incomeGrad)" />
-                  <Cell fill="url(#expenseGrad)" />
+                <Bar
+                  dataKey="value"
+                  radius={[8, 8, 0, 0]}
+                  isAnimationActive={CHART_ANIMATION}
+                >
+                  {barData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.fill} />
+                  ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -264,22 +290,23 @@ export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
             <span><i className="chart-swatch" style={{ background: chartNegativeBarColor() }} />負結餘</span>
             <span><i className="chart-swatch chart-swatch--line" style={{ background: chartCumulativeLineColor() }} />累計</span>
           </div>
-          <div className="chart-box chart-box--tall" data-testid="report-balance-chart">
+          <div
+            className="chart-box chart-box--tall"
+            data-testid="report-balance-chart"
+            data-timeline-months={timelineChartData.length}
+          >
             <ResponsiveContainer width="100%" height={240}>
-              <ComposedChart data={timeline}>
-                <defs>
-                  <linearGradient id="posBal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#6ee7b7" />
-                    <stop offset="100%" stopColor={chartPositiveBarColor()} />
-                  </linearGradient>
-                  <linearGradient id="negBal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#fda4af" />
-                    <stop offset="100%" stopColor={chartNegativeBarColor()} />
-                  </linearGradient>
-                </defs>
+              <ComposedChart data={timelineChartData} barCategoryGap="22%">
                 <CartesianGrid stroke="var(--separator)" vertical={false} />
                 <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--text-secondary)" }} interval="preserveStartEnd" />
-                <YAxis tickFormatter={(v) => `$${v}`} width={44} tick={{ fontSize: 10, fill: "var(--text-secondary)" }} />
+                <YAxis
+                  yAxisId="balance"
+                  tickFormatter={(v) => `$${v}`}
+                  width={44}
+                  tick={{ fontSize: 10, fill: "var(--text-secondary)" }}
+                />
+                <YAxis yAxisId="cumulative" orientation="right" hide />
+                <ReferenceLine yAxisId="balance" y={0} stroke="var(--separator)" />
                 <Tooltip
                   formatter={(v: number, name: string) => [
                     formatCurrency(v, name === "balance"),
@@ -287,24 +314,19 @@ export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
                   ]}
                   contentStyle={tooltipStyle}
                 />
-                <Legend
-                  verticalAlign="top"
-                  height={24}
-                  formatter={(value) =>
-                    value === "balance" ? "本月結餘" : "累計結餘"
-                  }
-                />
-                <Bar dataKey="balance" name="balance" radius={[4, 4, 0, 0]}>
-                  {timeline.map((row, i) => (
-                    <Cell
-                      key={`${row.year}-${row.month}-${i}`}
-                      fill={
-                        row.balance >= 0 ? "url(#posBal)" : "url(#negBal)"
-                      }
-                    />
+                <Bar
+                  yAxisId="balance"
+                  dataKey="balance"
+                  name="balance"
+                  radius={[4, 4, 0, 0]}
+                  isAnimationActive={CHART_ANIMATION}
+                >
+                  {timelineChartData.map((row) => (
+                    <Cell key={`${row.year}-${row.month}`} fill={row.balanceFill} />
                   ))}
                 </Bar>
                 <Line
+                  yAxisId="balance"
                   type="monotone"
                   dataKey="cumulativeBalance"
                   name="cumulative"
@@ -312,6 +334,7 @@ export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
                   strokeWidth={2.5}
                   dot={{ r: 3, fill: chartCumulativeLineColor(), strokeWidth: 0 }}
                   activeDot={{ r: 5 }}
+                  isAnimationActive={CHART_ANIMATION}
                 />
               </ComposedChart>
             </ResponsiveContainer>
@@ -341,7 +364,11 @@ export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
           </div>
         ) : (
           <>
-            <div className="chart-box" data-testid="report-pie-chart">
+            <div
+              className="chart-box"
+              data-testid="report-pie-chart"
+              data-category-count={pieData.length}
+            >
               <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
                   <Pie
@@ -351,37 +378,47 @@ export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
                     innerRadius={52}
                     outerRadius={82}
                     paddingAngle={2}
+                    isAnimationActive={CHART_ANIMATION}
                   >
-                    {pieData.map((entry, i) => (
-                      <Cell key={i} fill={entry.fill} />
+                    {pieData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.fill} />
                     ))}
                   </Pie>
                   <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={tooltipStyle} />
-                  <Legend
-                    layout="horizontal"
-                    verticalAlign="bottom"
-                    formatter={(value) => {
-                      const fill = pieData.find((p) => p.name === value)?.fill;
-                      return (
-                        <span className="chart-legend__item">
-                          <i className="chart-swatch" style={{ background: fill }} />
-                          {value}
-                        </span>
-                      );
-                    }}
-                  />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="chart-legend chart-legend--inline chart-legend--pie">
+                {pieData.map((entry) => (
+                  <span key={entry.name} className="chart-legend__item">
+                    <i className="chart-swatch" style={{ background: entry.fill }} />
+                    {entry.name}
+                  </span>
+                ))}
+              </div>
             </div>
-            <div className="chart-box chart-box--category-bars" data-testid="report-category-bar-chart">
-              <ResponsiveContainer width="100%" height={Math.max(160, categoryBarData.length * 36)}>
-                <BarChart data={categoryBarData} layout="vertical" margin={{ left: 8, right: 16 }}>
+            <div
+              className="chart-box chart-box--category-bars"
+              data-testid="report-category-bar-chart"
+              data-category-count={categoryBarData.length}
+            >
+              <ResponsiveContainer width="100%" height={Math.max(160, categoryBarData.length * 40)}>
+                <BarChart
+                  data={categoryBarData}
+                  layout="vertical"
+                  margin={{ left: 8, right: 16 }}
+                  barCategoryGap="18%"
+                >
                   <XAxis type="number" tickFormatter={(v) => `$${v}`} tick={{ fontSize: 10, fill: "var(--text-secondary)" }} />
                   <YAxis type="category" dataKey="name" width={72} tick={{ fontSize: 11, fill: "var(--text)" }} />
                   <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={tooltipStyle} />
-                  <Bar dataKey="spent" radius={[0, 6, 6, 0]} barSize={18}>
-                    {categoryBarData.map((entry, i) => (
-                      <Cell key={i} fill={entry.fill} />
+                  <Bar
+                    dataKey="spent"
+                    radius={[0, 6, 6, 0]}
+                    barSize={20}
+                    isAnimationActive={CHART_ANIMATION}
+                  >
+                    {categoryBarData.map((entry) => (
+                      <Cell key={entry.name} fill={entry.fill} />
                     ))}
                   </Bar>
                 </BarChart>
