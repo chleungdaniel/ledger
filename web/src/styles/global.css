@@ -1304,6 +1304,31 @@ body {
   border-color: color-mix(in srgb, var(--income) 40%, var(--separator));
 }
 
+.deeplink-banner {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  background: color-mix(in srgb, var(--accent-orange) 18%, var(--bg-elevated));
+  border: 1px solid var(--separator);
+}
+
+.deeplink-debug {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.deeplink-debug pre {
+  margin: 8px 0 0;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--separator);
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-size: 11px;
+}
+
 .hint--sync {
   color: var(--text-secondary);
 }
