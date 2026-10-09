@@ -350,6 +350,25 @@ body {
   gap: 12px;
 }
 
+.quick-actions--triple {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 380px) {
+  .quick-actions--triple {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .quick-actions--triple .import {
+    grid-column: 1 / -1;
+  }
+}
+
+.btn-quick.import {
+  background: linear-gradient(135deg, #2dd4bf, #0d9488);
+  color: #fff;
+}
+
 .btn-quick {
   min-height: 52px;
   border: none;
@@ -1001,4 +1020,86 @@ body {
 
 .page--home .section h2 {
   letter-spacing: 0.04em;
+}
+
+.import-page {
+  min-height: 100dvh;
+  padding-bottom: var(--safe-bottom);
+}
+
+.import-body {
+  padding-top: 12px;
+}
+
+.import-file-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.import-review {
+  padding-bottom: 24px;
+}
+
+.import-list {
+  margin: 0 16px;
+}
+
+.import-row {
+  display: flex;
+  gap: 10px;
+  padding: 12px 12px 16px;
+  border-bottom: 1px solid var(--separator);
+}
+
+.import-row--dup {
+  opacity: 0.65;
+}
+
+.import-row__check {
+  padding-top: 8px;
+}
+
+.import-row__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.field--compact {
+  margin-bottom: 8px;
+}
+
+.field--compact span {
+  font-size: 12px;
+}
+
+.import-dup-badge {
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--accent-orange);
+}
+
+.import-commit {
+  margin: 16px;
+  width: calc(100% - 32px);
+}
+
+.help-card {
+  margin: 0 16px;
+}
+
+.help-steps {
+  padding-left: 20px;
+  line-height: 1.5;
+}
+
+.url-template {
+  font-size: 12px;
+  word-break: break-all;
+  background: var(--bg);
+  padding: 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--separator);
 }

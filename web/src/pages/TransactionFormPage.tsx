@@ -1,13 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CategoryIcon } from "../components/CategoryIcon";
 import { parseAmount, formatCurrency } from "../lib/format";
 import { useLedger } from "../store/LedgerContext";
 import type { Transaction, TransactionType } from "../types";
 import { TRANSACTION_TYPE_LABEL } from "../types";
 
+export interface TransactionFormPreset {
+  type?: TransactionType;
+  amount?: number | null;
+  note?: string;
+  date?: string | null;
+  categoryId?: string | null;
+  autoSave?: boolean;
+  fromDeepLink?: boolean;
+}
+
 interface TransactionFormPageProps {
   initialType?: TransactionType;
   transaction?: Transaction;
+  preset?: TransactionFormPreset;
   onClose: () => void;
   onSaved?: () => void;
 }
@@ -15,25 +26,37 @@ interface TransactionFormPageProps {
 export function TransactionFormPage({
   initialType = "expense",
   transaction,
+  preset,
   onClose,
   onSaved,
 }: TransactionFormPageProps) {
   const { categories, upsertTransaction, removeTransaction } = useLedger();
-  const [type, setType] = useState<TransactionType>(transaction?.type ?? initialType);
-  const [amountText, setAmountText] = useState(
-    transaction ? String(transaction.amount) : "",
+  const [type, setType] = useState<TransactionType>(
+    transaction?.type ?? preset?.type ?? initialType,
   );
-  const [categoryId, setCategoryId] = useState(transaction?.categoryId ?? "");
+  const [amountText, setAmountText] = useState(
+    transaction
+      ? String(transaction.amount)
+      : preset?.amount != null
+        ? String(preset.amount)
+        : "",
+  );
+  const [categoryId, setCategoryId] = useState(
+    transaction?.categoryId ?? preset?.categoryId ?? "",
+  );
   const [date, setDate] = useState(
     transaction
       ? transaction.date.slice(0, 16)
-      : new Date().toISOString().slice(0, 16),
+      : preset?.date
+        ? preset.date.slice(0, 16)
+        : new Date().toISOString().slice(0, 16),
   );
-  const [note, setNote] = useState(transaction?.note ?? "");
+  const [note, setNote] = useState(transaction?.note ?? preset?.note ?? "");
   const [error, setError] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
 
   const filtered = categories.filter((c) => c.type === type);
+  const autoSaveOnce = useRef(false);
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
@@ -78,6 +101,16 @@ export function TransactionFormPage({
     closeSheet();
   }
 
+  useEffect(() => {
+    if (!preset?.autoSave || autoSaveOnce.current || transaction) return;
+    if (!categoryId || !amountText) return;
+    const amount = parseAmount(amountText);
+    if (amount == null || amount <= 0) return;
+    autoSaveOnce.current = true;
+    void save();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot auto save on open
+  }, [preset?.autoSave, categoryId, amountText, transaction]);
+
   const preview =
     parseAmount(amountText) != null && parseAmount(amountText)! > 0
       ? formatCurrency(parseAmount(amountText)!)
@@ -86,7 +119,7 @@ export function TransactionFormPage({
   return (
     <div
       className={`sheet-root ${visible ? "sheet-root--open" : ""}`}
-      data-testid="tx-form-sheet"
+      data-testid={preset?.fromDeepLink ? "tx-form-deeplink" : "tx-form-sheet"}
     >
       <button
         type="button"
