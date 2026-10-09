@@ -13,6 +13,16 @@ import {
   formatMonthYear,
   yearMonthFromDate,
 } from "../lib/format";
+import {
+  PwaSyncControls,
+  PwaSyncDeepLinkToast,
+} from "../components/PwaSyncControls";
+import { isInBrowserTab } from "../lib/runtimeContext";
+import {
+  buildSyncPayload,
+  encodeSyncPayloadAsync,
+  listUnsyncedTransactions,
+} from "../lib/pwaSync";
 import { useLedger } from "../store/LedgerContext";
 import type { Transaction } from "../types";
 import { TransactionFormPage, type TransactionFormPreset } from "./TransactionFormPage";
@@ -38,6 +48,7 @@ export function HomePage({ onOpenImport, deepLink, onDeepLinkConsumed }: HomePag
   const [formType, setFormType] = useState<"expense" | "income" | null>(null);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [formPreset, setFormPreset] = useState<TransactionFormPreset | undefined>();
+  const [deepLinkToast, setDeepLinkToast] = useState(false);
 
   useEffect(() => {
     if (!deepLink?.openAdd || loading) return;
@@ -87,6 +98,11 @@ export function HomePage({ onOpenImport, deepLink, onDeepLinkConsumed }: HomePag
           setEditing(null);
           setFormPreset(undefined);
         }}
+        onSaved={() => {
+          if (formPreset?.fromDeepLink && isInBrowserTab()) {
+            setDeepLinkToast(true);
+          }
+        }}
       />
     );
   }
@@ -128,6 +144,25 @@ export function HomePage({ onOpenImport, deepLink, onDeepLinkConsumed }: HomePag
           </button>
         </div>
       </header>
+
+      <PwaSyncControls variant="banner" />
+      <div className="pad-horizontal pwa-sync-home-row">
+        <PwaSyncControls variant="button" />
+      </div>
+      <PwaSyncDeepLinkToast
+        visible={deepLinkToast}
+        onDismiss={() => setDeepLinkToast(false)}
+        onCopy={() => {
+          void (async () => {
+            const unsynced = listUnsyncedTransactions(transactions);
+            if (unsynced.length === 0) return;
+            const payload = buildSyncPayload(transactions, categories, unsynced);
+            const code = await encodeSyncPayloadAsync(payload);
+            await navigator.clipboard.writeText(code);
+            setDeepLinkToast(false);
+          })();
+        }}
+      />
 
       {loading ? (
         <p className="muted center">載入中…</p>

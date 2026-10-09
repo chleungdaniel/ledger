@@ -18,6 +18,7 @@ import {
   putCategory,
   putTransaction,
 } from "../db/database";
+import { mergeSyncPayload, type SyncPayload } from "../lib/pwaSync";
 import { newId } from "../lib/format";
 import type {
   Category,
@@ -47,6 +48,9 @@ interface LedgerState {
   removeBudget: (id: string) => Promise<void>;
   exportData: () => Promise<LedgerBackup>;
   importData: (backup: LedgerBackup) => Promise<void>;
+  markTransactionsPwaExported: (ids: string[]) => Promise<void>;
+  removeTransactions: (ids: string[]) => Promise<void>;
+  mergePwaSync: (payload: SyncPayload) => Promise<{ added: number; skipped: number }>;
 }
 
 const LedgerContext = createContext<LedgerState | null>(null);
@@ -86,6 +90,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
         note: input.note,
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
+        pwaSyncExportedAt: existing?.pwaSyncExportedAt,
       };
       await putTransaction(tx);
       await refresh();
@@ -182,6 +187,46 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
     [refresh],
   );
 
+  const markTransactionsPwaExported = useCallback(
+    async (ids: string[]) => {
+      const stamp = new Date().toISOString();
+      const idSet = new Set(ids);
+      for (const tx of transactions) {
+        if (!idSet.has(tx.id)) continue;
+        await putTransaction({ ...tx, pwaSyncExportedAt: stamp });
+      }
+      await refresh();
+    },
+    [refresh, transactions],
+  );
+
+  const removeTransactions = useCallback(
+    async (ids: string[]) => {
+      for (const id of ids) {
+        await deleteTransaction(id);
+      }
+      await refresh();
+    },
+    [refresh],
+  );
+
+  const mergePwaSync = useCallback(
+    async (payload: SyncPayload) => {
+      const result = mergeSyncPayload(categories, transactions, payload);
+      const oldCatIds = new Set(categories.map((c) => c.id));
+      const oldTxIds = new Set(transactions.map((t) => t.id));
+      for (const c of result.categories) {
+        if (!oldCatIds.has(c.id)) await putCategory(c);
+      }
+      for (const t of result.transactions) {
+        if (!oldTxIds.has(t.id)) await putTransaction(t);
+      }
+      await refresh();
+      return { added: result.added, skipped: result.skipped };
+    },
+    [categories, refresh, transactions],
+  );
+
   const value = useMemo(
     () => ({
       loading,
@@ -197,6 +242,9 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       removeBudget,
       exportData,
       importData,
+      markTransactionsPwaExported,
+      removeTransactions,
+      mergePwaSync,
     }),
     [
       loading,
@@ -212,6 +260,9 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       removeBudget,
       exportData,
       importData,
+      markTransactionsPwaExported,
+      removeTransactions,
+      mergePwaSync,
     ],
   );
 

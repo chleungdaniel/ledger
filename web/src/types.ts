@@ -19,6 +19,8 @@ export interface Transaction {
   note: string;
   createdAt: string;
   updatedAt: string;
+  /** Set after copying a sync code to the other PWA context (Safari vs home screen). */
+  pwaSyncExportedAt?: string;
 }
 
 export interface MonthlyBudget {
