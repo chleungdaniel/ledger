@@ -5,16 +5,16 @@
   --text: #111118;
   --text-secondary: #5c5c6a;
   --separator: rgba(60, 60, 67, 0.1);
-  --accent: #4f46e5;
-  --accent-soft: #eef2ff;
+  --accent: #0d9488;
+  --accent-soft: #ccfbf1;
   --accent-green: #16a34a;
   --accent-red: #e11d48;
   --accent-orange: #ea580c;
-  --hero-from: #4f46e5;
-  --hero-to: #7c3aed;
+  --hero-from: #0d9488;
+  --hero-to: #059669;
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 16px 40px rgba(79, 70, 229, 0.22);
+  --shadow-lg: 0 16px 40px rgba(13, 148, 136, 0.28);
   --radius-card: 20px;
   --radius-control: 14px;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -32,16 +32,16 @@
     --text: #f4f4f8;
     --text-secondary: #a1a1b0;
     --separator: rgba(255, 255, 255, 0.08);
-    --accent: #818cf8;
-    --accent-soft: rgba(129, 140, 248, 0.12);
+    --accent: #2dd4bf;
+    --accent-soft: rgba(45, 212, 191, 0.14);
     --accent-green: #4ade80;
     --accent-red: #fb7185;
     --accent-orange: #fb923c;
-    --hero-from: #4338ca;
-    --hero-to: #6d28d9;
+    --hero-from: #0f766e;
+    --hero-to: #047857;
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
     --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.45);
-    --shadow-lg: 0 18px 48px rgba(67, 56, 202, 0.35);
+    --shadow-lg: 0 18px 48px rgba(15, 118, 110, 0.4);
   }
 }
 
@@ -754,6 +754,27 @@ body {
 
 .segmented--pill button {
   border-radius: 999px;
+}
+
+.segmented--triple {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.field-label {
+  display: block;
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.report-period {
+  margin-bottom: 12px;
+}
+
+.segmented--pill button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .field--hero .amount-input--hero {

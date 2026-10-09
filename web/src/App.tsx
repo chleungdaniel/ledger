@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ReportPeriod } from "./lib/analytics";
 import { BackupSection } from "./pages/BackupSection";
 import { BudgetPage } from "./pages/BudgetPage";
 import { CategoriesPage } from "./pages/CategoriesPage";
@@ -16,13 +17,16 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("home");
+  const [reportPeriod, setReportPeriod] = useState<ReportPeriod>("month");
 
   return (
     <div className="app-shell">
       <main className="app-main">
         {tab === "home" && <HomePage />}
         {tab === "budget" && <BudgetPage />}
-        {tab === "reports" && <ReportsPage />}
+        {tab === "reports" && (
+          <ReportsPage period={reportPeriod} onPeriodChange={setReportPeriod} />
+        )}
         {tab === "categories" && (
           <>
             <CategoriesPage />
