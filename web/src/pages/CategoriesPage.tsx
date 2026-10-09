@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { PwaSyncControls } from "../components/PwaSyncControls";
 import { CategoryIcon, SYMBOL_OPTIONS } from "../components/CategoryIcon";
 import { transactionCountForCategory } from "../lib/analytics";
 import { useLedger } from "../store/LedgerContext";
@@ -49,6 +50,9 @@ export function CategoriesPage() {
       <header className="page-header">
         <h1>分類</h1>
       </header>
+      <section className="section section--tight pad-horizontal">
+        <PwaSyncControls variant="button" />
+      </section>
       {alert && (
         <div className="banner banner--warn" role="alert">
           {alert}

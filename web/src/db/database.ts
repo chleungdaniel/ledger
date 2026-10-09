@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import { createSeedCategories, V2_CATEGORY_MIGRATIONS } from "../data/seed";
+import { isValidTransactionId } from "../lib/pwaSync/merge";
 import { newId } from "../lib/format";
 import type { Category, LedgerBackup, MonthlyBudget, Transaction } from "../types";
 
@@ -50,6 +51,7 @@ export function getDb(): Promise<IDBPDatabase<LedgerDB>> {
     }).then(async (db) => {
       await seedIfNeeded(db);
       await migrateV2Categories(db);
+      await migrateTransactionIds(db);
       return db;
     });
   }
@@ -74,6 +76,20 @@ async function migrateV2Categories(db: IDBPDatabase<LedgerDB>): Promise<void> {
     });
   }
   await db.put("meta", { key: "migrationV2Categories", value: "true" });
+}
+
+async function migrateTransactionIds(db: IDBPDatabase<LedgerDB>): Promise<void> {
+  const done = await db.get("meta", "migrationTransactionUuids");
+  if (done?.value === "true") return;
+
+  const txs = await db.getAll("transactions");
+  for (const tx of txs) {
+    if (isValidTransactionId(tx.id)) continue;
+    const repaired: Transaction = { ...tx, id: newId() };
+    await db.delete("transactions", tx.id);
+    await db.put("transactions", repaired);
+  }
+  await db.put("meta", { key: "migrationTransactionUuids", value: "true" });
 }
 
 async function seedIfNeeded(db: IDBPDatabase<LedgerDB>): Promise<void> {

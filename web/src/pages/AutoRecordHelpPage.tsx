@@ -38,6 +38,18 @@ export function AutoRecordHelpPage() {
           加上 <code>&amp;auto=1</code> 會依規則自動選分類並儲存；若需確認，改為 <code>&amp;add=1</code> 不帶 auto。
           亦支援 <code>type=income</code>、<code>date=</code> ISO 日期。
         </p>
+        <h3 className="help-subhead">Safari 與主畫面 App 的資料</h3>
+        <p>
+          捷徑「開啟 URL」會在 <strong>Safari</strong> 記帳，資料存在 Safari 的 IndexedDB，與
+          <strong>加入主畫面</strong>的獨立 App 分開。若要讓主畫面 App 看到 Safari 裡的記錄：
+        </p>
+        <ol className="help-steps">
+          <li>在 Safari 打開記帳，首頁會顯示未同步筆數，點 <strong>複製同步碼</strong>。</li>
+          <li>打開主畫面 App，點 <strong>同步 Safari 記錄</strong>（首頁或分類），確認合併。</li>
+        </ol>
+        <p className="hint">
+          亦可只在 Safari 使用、不加入主畫面。同步為手動複製／貼上，不經伺服器。
+        </p>
       </div>
     </section>
   );
