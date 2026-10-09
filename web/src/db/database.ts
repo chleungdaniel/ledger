@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { createSeedCategories } from "../data/seed";
+import { createSeedCategories, V2_CATEGORY_MIGRATIONS } from "../data/seed";
+import { newId } from "../lib/format";
 import type { Category, LedgerBackup, MonthlyBudget, Transaction } from "../types";
 
 interface LedgerDB extends DBSchema {
@@ -22,14 +23,14 @@ interface LedgerDB extends DBSchema {
 }
 
 const DB_NAME = "ledger-pwa";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<LedgerDB>> | null = null;
 
 export function getDb(): Promise<IDBPDatabase<LedgerDB>> {
   if (!dbPromise) {
     dbPromise = openDB<LedgerDB>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
+      upgrade(db, oldVersion) {
         if (!db.objectStoreNames.contains("categories")) {
           db.createObjectStore("categories", { keyPath: "id" });
         }
@@ -42,13 +43,37 @@ export function getDb(): Promise<IDBPDatabase<LedgerDB>> {
         if (!db.objectStoreNames.contains("meta")) {
           db.createObjectStore("meta", { keyPath: "key" });
         }
+        if (oldVersion > 0 && oldVersion < 2) {
+          // v2 category migration runs after upgrade via migrateV2Categories
+        }
       },
     }).then(async (db) => {
       await seedIfNeeded(db);
+      await migrateV2Categories(db);
       return db;
     });
   }
   return dbPromise;
+}
+
+async function migrateV2Categories(db: IDBPDatabase<LedgerDB>): Promise<void> {
+  const done = await db.get("meta", "migrationV2Categories");
+  if (done?.value === "true") return;
+
+  const existing = await db.getAll("categories");
+  const now = new Date().toISOString();
+  for (const template of V2_CATEGORY_MIGRATIONS) {
+    const has = existing.some(
+      (c) => c.name === template.name && c.type === template.type,
+    );
+    if (has) continue;
+    await db.put("categories", {
+      ...template,
+      id: newId(),
+      createdAt: now,
+    });
+  }
+  await db.put("meta", { key: "migrationV2Categories", value: "true" });
 }
 
 async function seedIfNeeded(db: IDBPDatabase<LedgerDB>): Promise<void> {

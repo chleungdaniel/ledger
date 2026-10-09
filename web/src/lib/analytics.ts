@@ -6,6 +6,16 @@ export interface MonthSummary {
   balance: number;
 }
 
+export interface MonthBalancePoint {
+  year: number;
+  month: number;
+  label: string;
+  totalIncome: number;
+  totalExpense: number;
+  balance: number;
+  cumulativeBalance: number;
+}
+
 export interface CategorySpend {
   category: Category;
   spent: number;
@@ -25,6 +35,20 @@ export function transactionsInMonth(
     })
     .filter((t) => (type ? t.type === type : true))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+export function allTimeSummary(transactions: Transaction[]): MonthSummary {
+  let totalIncome = 0;
+  let totalExpense = 0;
+  for (const t of transactions) {
+    if (t.type === "income") totalIncome += t.amount;
+    else totalExpense += t.amount;
+  }
+  return {
+    totalIncome,
+    totalExpense,
+    balance: totalIncome - totalExpense,
+  };
 }
 
 export function monthSummary(
@@ -107,4 +131,79 @@ export function transactionCountForCategory(
   categoryId: string,
 ): number {
   return transactions.filter((t) => t.categoryId === categoryId).length;
+}
+
+function monthKey(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+/** Per-month 結餘 plus running cumulative total (chronological). */
+export function monthBalanceTimeline(
+  transactions: Transaction[],
+): MonthBalancePoint[] {
+  const locale = "zh-Hant-HK";
+  const buckets = new Map<string, { year: number; month: number; income: number; expense: number }>();
+
+  for (const t of transactions) {
+    const d = new Date(t.date);
+    const year = d.getFullYear();
+    const month = d.getMonth() + 1;
+    const key = monthKey(year, month);
+    const row = buckets.get(key) ?? { year, month, income: 0, expense: 0 };
+    if (t.type === "income") row.income += t.amount;
+    else row.expense += t.amount;
+    buckets.set(key, row);
+  }
+
+  const now = new Date();
+  const endYear = now.getFullYear();
+  const endMonth = now.getMonth() + 1;
+
+  let startYear = endYear;
+  let startMonth = endMonth;
+  if (transactions.length > 0) {
+    const earliest = transactions.reduce((min, t) =>
+      new Date(t.date).getTime() < new Date(min.date).getTime() ? t : min,
+    );
+    startYear = new Date(earliest.date).getFullYear();
+    startMonth = new Date(earliest.date).getMonth() + 1;
+  }
+
+  const keys: string[] = [];
+  let y = startYear;
+  let m = startMonth;
+  while (y < endYear || (y === endYear && m <= endMonth)) {
+    keys.push(monthKey(y, m));
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+
+  let cumulative = 0;
+  const points: MonthBalancePoint[] = [];
+  for (const key of keys) {
+    const row = buckets.get(key);
+    const year = row?.year ?? Number(key.slice(0, 4));
+    const month = row?.month ?? Number(key.slice(5, 7));
+    const totalIncome = row?.income ?? 0;
+    const totalExpense = row?.expense ?? 0;
+    const balance = totalIncome - totalExpense;
+    cumulative += balance;
+    const label = new Intl.DateTimeFormat(locale, {
+      year: "numeric",
+      month: "short",
+    }).format(new Date(year, month - 1, 1));
+    points.push({
+      year,
+      month,
+      label,
+      totalIncome,
+      totalExpense,
+      balance,
+      cumulativeBalance: cumulative,
+    });
+  }
+  return points;
 }
