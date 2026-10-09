@@ -5,6 +5,7 @@ import {
   CartesianGrid,
   Cell,
   ComposedChart,
+  Legend,
   Line,
   Pie,
   PieChart,
@@ -23,17 +24,16 @@ import {
   summaryFromTransactions,
   transactionsInYear,
 } from "../lib/analytics";
+import {
+  chartCumulativeLineColor,
+  chartExpenseColor,
+  chartIncomeColor,
+  chartNegativeBarColor,
+  chartPositiveBarColor,
+  colorForCategory,
+} from "../lib/chartColors";
 import { formatCurrency, formatMonthYear } from "../lib/format";
 import { useLedger } from "../store/LedgerContext";
-
-const PIE_COLORS = [
-  "#6b7280",
-  "#9ca3af",
-  "#4b5563",
-  "#d1d5db",
-  "#374151",
-  "#a8a29e",
-];
 
 interface ReportsPageProps {
   period: ReportPeriod;
@@ -85,13 +85,20 @@ export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
   );
 
   const barData = [
-    { name: "收入", value: summary.totalIncome },
-    { name: "支出", value: summary.totalExpense },
+    { name: "收入", value: summary.totalIncome, fill: chartIncomeColor() },
+    { name: "支出", value: summary.totalExpense, fill: chartExpenseColor() },
   ];
 
-  const pieData = breakdown.map((item) => ({
+  const pieData = breakdown.map((item, i) => ({
     name: item.category.name,
     value: item.spent,
+    fill: colorForCategory(item.category.id, i),
+  }));
+
+  const categoryBarData = breakdown.map((item, i) => ({
+    name: item.category.name,
+    spent: item.spent,
+    fill: colorForCategory(item.category.id, i),
   }));
 
   const latestCumulative =
@@ -113,6 +120,13 @@ export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
       : period === "year"
         ? `${reportYear} 年無支出`
         : "本月無支出";
+
+  const tooltipStyle = {
+    borderRadius: 10,
+    border: "1px solid var(--separator)",
+    background: "var(--bg-elevated)",
+    color: "var(--text)",
+  };
 
   return (
     <div className="page" data-testid="reports-page" data-report-period={period}>
@@ -203,15 +217,29 @@ export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
               </strong>
             </div>
           </div>
+          <div className="chart-legend chart-legend--inline">
+            <span><i className="chart-swatch" style={{ background: chartIncomeColor() }} />收入</span>
+            <span><i className="chart-swatch" style={{ background: chartExpenseColor() }} />支出</span>
+          </div>
           <div className="chart-box" data-testid="report-bar-chart">
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={barData}>
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis tickFormatter={(v) => `$${v}`} width={48} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                <defs>
+                  <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#4ade80" />
+                    <stop offset="100%" stopColor={chartIncomeColor()} />
+                  </linearGradient>
+                  <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#fda4af" />
+                    <stop offset="100%" stopColor={chartExpenseColor()} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="name" tick={{ fontSize: 12, fill: "var(--text-secondary)" }} />
+                <YAxis tickFormatter={(v) => `$${v}`} width={48} tick={{ fontSize: 11, fill: "var(--text-secondary)" }} />
+                <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={tooltipStyle} />
                 <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                  <Cell fill="var(--accent-green)" />
-                  <Cell fill="var(--accent-orange)" />
+                  <Cell fill="url(#incomeGrad)" />
+                  <Cell fill="url(#expenseGrad)" />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -231,26 +259,59 @@ export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
               {formatCurrency(latestCumulative, true)}
             </strong>
           </p>
+          <div className="chart-legend chart-legend--inline">
+            <span><i className="chart-swatch" style={{ background: chartPositiveBarColor() }} />正結餘</span>
+            <span><i className="chart-swatch" style={{ background: chartNegativeBarColor() }} />負結餘</span>
+            <span><i className="chart-swatch chart-swatch--line" style={{ background: chartCumulativeLineColor() }} />累計</span>
+          </div>
           <div className="chart-box chart-box--tall" data-testid="report-balance-chart">
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={240}>
               <ComposedChart data={timeline}>
+                <defs>
+                  <linearGradient id="posBal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#6ee7b7" />
+                    <stop offset="100%" stopColor={chartPositiveBarColor()} />
+                  </linearGradient>
+                  <linearGradient id="negBal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#fda4af" />
+                    <stop offset="100%" stopColor={chartNegativeBarColor()} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid stroke="var(--separator)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-                <YAxis tickFormatter={(v) => `$${v}`} width={44} tick={{ fontSize: 10 }} />
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--text-secondary)" }} interval="preserveStartEnd" />
+                <YAxis tickFormatter={(v) => `$${v}`} width={44} tick={{ fontSize: 10, fill: "var(--text-secondary)" }} />
                 <Tooltip
                   formatter={(v: number, name: string) => [
                     formatCurrency(v, name === "balance"),
                     name === "balance" ? "本月結餘" : "累計結餘",
                   ]}
+                  contentStyle={tooltipStyle}
                 />
-                <Bar dataKey="balance" name="balance" radius={[4, 4, 0, 0]} fill="var(--chart-neutral)" />
+                <Legend
+                  verticalAlign="top"
+                  height={24}
+                  formatter={(value) =>
+                    value === "balance" ? "本月結餘" : "累計結餘"
+                  }
+                />
+                <Bar dataKey="balance" name="balance" radius={[4, 4, 0, 0]}>
+                  {timeline.map((row, i) => (
+                    <Cell
+                      key={`${row.year}-${row.month}-${i}`}
+                      fill={
+                        row.balance >= 0 ? "url(#posBal)" : "url(#negBal)"
+                      }
+                    />
+                  ))}
+                </Bar>
                 <Line
                   type="monotone"
                   dataKey="cumulativeBalance"
                   name="cumulative"
-                  stroke="var(--accent)"
-                  strokeWidth={2}
-                  dot={false}
+                  stroke={chartCumulativeLineColor()}
+                  strokeWidth={2.5}
+                  dot={{ r: 3, fill: chartCumulativeLineColor(), strokeWidth: 0 }}
+                  activeDot={{ r: 5 }}
                 />
               </ComposedChart>
             </ResponsiveContainer>
@@ -281,32 +342,63 @@ export function ReportsPage({ period, onPeriodChange }: ReportsPageProps) {
         ) : (
           <>
             <div className="chart-box" data-testid="report-pie-chart">
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
                   <Pie
                     data={pieData}
                     dataKey="value"
                     nameKey="name"
-                    innerRadius={55}
-                    outerRadius={85}
+                    innerRadius={52}
+                    outerRadius={82}
                     paddingAngle={2}
                   >
-                    {pieData.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                    {pieData.map((entry, i) => (
+                      <Cell key={i} fill={entry.fill} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                  <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={tooltipStyle} />
+                  <Legend
+                    layout="horizontal"
+                    verticalAlign="bottom"
+                    formatter={(value) => {
+                      const fill = pieData.find((p) => p.name === value)?.fill;
+                      return (
+                        <span className="chart-legend__item">
+                          <i className="chart-swatch" style={{ background: fill }} />
+                          {value}
+                        </span>
+                      );
+                    }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
+            <div className="chart-box chart-box--category-bars" data-testid="report-category-bar-chart">
+              <ResponsiveContainer width="100%" height={Math.max(160, categoryBarData.length * 36)}>
+                <BarChart data={categoryBarData} layout="vertical" margin={{ left: 8, right: 16 }}>
+                  <XAxis type="number" tickFormatter={(v) => `$${v}`} tick={{ fontSize: 10, fill: "var(--text-secondary)" }} />
+                  <YAxis type="category" dataKey="name" width={72} tick={{ fontSize: 11, fill: "var(--text)" }} />
+                  <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={tooltipStyle} />
+                  <Bar dataKey="spent" radius={[0, 6, 6, 0]} barSize={18}>
+                    {categoryBarData.map((entry, i) => (
+                      <Cell key={i} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
             <div className="list-card list-card--elevated">
-              {breakdown.map((item) => (
-                <div key={item.category.id} className="report-row">
-                  <CategoryIcon name={item.category.iconName} size="sm" />
-                  <span>{item.category.name}</span>
-                  <span className="muted tabular">{formatCurrency(item.spent)}</span>
-                </div>
-              ))}
+              {breakdown.map((item, i) => {
+                const swatch = colorForCategory(item.category.id, i);
+                return (
+                  <div key={item.category.id} className="report-row report-row--category">
+                    <span className="chart-swatch chart-swatch--row" style={{ background: swatch }} />
+                    <CategoryIcon name={item.category.iconName} size="sm" />
+                    <span>{item.category.name}</span>
+                    <span className="muted tabular">{formatCurrency(item.spent)}</span>
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
