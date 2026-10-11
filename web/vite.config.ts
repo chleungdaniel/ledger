@@ -45,5 +45,8 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.ts"],
     environment: "node",
+    env: {
+      TZ: "Asia/Hong_Kong",
+    },
   },
 });

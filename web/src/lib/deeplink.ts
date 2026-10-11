@@ -1,3 +1,4 @@
+import { parseShortcutDateParam } from "./datetime";
 import { decodeParamValue, parseShortcutAmount } from "./parseShortcutAmount";
 import type { TransactionType } from "../types";
 
@@ -28,14 +29,6 @@ function firstParam(params: URLSearchParams, keys: string[]): string | null {
     if (keys.includes(decodedKey) || keys.includes(key)) return v;
   }
   return null;
-}
-
-function buildRawDebug(params: URLSearchParams): string {
-  const parts: string[] = [];
-  for (const [k, v] of params.entries()) {
-    parts.push(`${k}=${v}`);
-  }
-  return parts.join("&") || "(empty query)";
 }
 
 function parseType(
@@ -69,16 +62,15 @@ export function parseDeepLink(search: string): DeepLinkPayload | null {
 
   if (!add) return null;
 
-  const merchant = merchantRaw ? decodeParamValue(merchantRaw) : "";
+  const merchant = merchantRaw != null ? decodeParamValue(merchantRaw).trim() : "";
   const type = parseType(params, amountRaw, merchant);
   const { amount } = parseShortcutAmount(amountRaw);
 
   const dateRaw = params.get("date") ?? params.get("Date");
   let date: string | null = null;
   if (dateRaw) {
-    const decoded = decodeParamValue(dateRaw);
-    const d = new Date(decoded);
-    if (!Number.isNaN(d.getTime())) date = d.toISOString();
+    const d = parseShortcutDateParam(dateRaw);
+    if (d) date = d.toISOString();
   }
 
   const auto = params.get("auto") === "1";
@@ -91,7 +83,7 @@ export function parseDeepLink(search: string): DeepLinkPayload | null {
     date,
     auto,
     amountMissing: auto && amount == null,
-    rawParamsDebug: buildRawDebug(params),
+    rawParamsDebug: "",
   };
 }
 

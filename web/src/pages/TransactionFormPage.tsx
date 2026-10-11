@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { CategoryIcon } from "../components/CategoryIcon";
+import {
+  isoToLocalDateTimeInput,
+  localDateTimeInputValue,
+  parseLocalDateTimeInputToIso,
+} from "../lib/datetime";
 import { parseAmount, formatCurrency } from "../lib/format";
 import { useLedger } from "../store/LedgerContext";
 import type { Transaction, TransactionType } from "../types";
@@ -48,10 +53,10 @@ export function TransactionFormPage({
   );
   const [date, setDate] = useState(
     transaction
-      ? transaction.date.slice(0, 16)
+      ? isoToLocalDateTimeInput(transaction.date)
       : preset?.date
-        ? preset.date.slice(0, 16)
-        : new Date().toISOString().slice(0, 16),
+        ? isoToLocalDateTimeInput(preset.date)
+        : localDateTimeInputValue(new Date()),
   );
   const [note, setNote] = useState(transaction?.note ?? preset?.note ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +119,7 @@ export function TransactionFormPage({
       amount,
       type,
       categoryId,
-      date: new Date(date).toISOString(),
+      date: parseLocalDateTimeInputToIso(date),
       note: note.trim(),
     });
     onSaved?.();

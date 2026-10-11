@@ -8,6 +8,7 @@ import {
   monthSummary,
   totalBudgetForMonth,
 } from "../lib/analytics";
+import { formatDeepLinkDebug, localNowIso } from "../lib/datetime";
 import {
   formatCurrency,
   formatMonthYear,
@@ -63,12 +64,15 @@ export function HomePage({ onOpenImport, deepLink, onDeepLinkConsumed }: HomePag
       type: deepLink.type,
       amount: deepLink.amount,
       note: deepLink.merchant,
-      date: deepLink.date ?? new Date().toISOString(),
+      date: deepLink.date ?? localNowIso(),
       categoryId: suggested,
       autoSave: deepLink.auto && deepLink.amount != null && deepLink.amount > 0,
       fromDeepLink: true,
       amountMissingBanner: deepLink.amountMissing,
-      debugRawParams: deepLink.rawParamsDebug,
+      debugRawParams: formatDeepLinkDebug(
+        window.location.href,
+        window.location.search,
+      ),
     });
     onDeepLinkConsumed();
   }, [deepLink, loading, onDeepLinkConsumed, categories, transactions]);

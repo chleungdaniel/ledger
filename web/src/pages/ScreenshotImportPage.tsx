@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  isoToLocalDateTimeInput,
+  parseLocalDateTimeInputToIso,
+} from "../lib/datetime";
 import { markDuplicates } from "../lib/import/duplicates";
 import { loadFxRates, saveFxRates } from "../lib/import/fxSettings";
 import { recognizeImageFiles } from "../lib/import/ocr";
@@ -175,9 +179,11 @@ export function ScreenshotImportPage({ onClose, fixtureKey }: ScreenshotImportPa
                     <span>日期</span>
                     <input
                       type="datetime-local"
-                      value={row.date.slice(0, 16)}
+                      value={isoToLocalDateTimeInput(row.date)}
                       onChange={(e) =>
-                        updateRow(row.id, { date: new Date(e.target.value).toISOString() })
+                        updateRow(row.id, {
+                          date: parseLocalDateTimeInputToIso(e.target.value),
+                        })
                       }
                     />
                   </label>

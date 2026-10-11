@@ -70,7 +70,7 @@ describe("parseDeepLink", () => {
     const p = parseDeepLink("?add=1&merchant=Octopus&auto=1");
     expect(p?.amount).toBeNull();
     expect(p?.amountMissing).toBe(true);
-    expect(p?.rawParamsDebug).toContain("merchant=Octopus");
+    expect(p?.merchant).toBe("Octopus");
   });
 
   it("infers income from negative amount", () => {
