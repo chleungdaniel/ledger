@@ -232,34 +232,29 @@ export function PwaSyncControls({
     <>
       {showSafariCard && (
         <section className="pad-horizontal" data-testid="pwa-sync-card">
-          <div className="sync-card">
-            <div className="sync-card__body">
+          <div className="sync-card sync-card--compact">
+            <p className="sync-card__compact-text">
               <span className="sync-card__icon" aria-hidden>⇄</span>
-              <div>
-                <p className="sync-card__title">
-                  有 <strong>{unsynced.length}</strong> 筆未同步
-                </p>
-                <p className="sync-card__hint muted">複製後到主畫面 App 按「同步」</p>
-              </div>
-            </div>
+              <strong>{unsynced.length}</strong> 筆未同步
+            </p>
             <button
               type="button"
-              className="sync-card__cta"
+              className="sync-card__compact-cta"
               data-testid="pwa-sync-copy"
               disabled={busy}
               onClick={() => void copyAndMark(unsynced)}
             >
-              <span className="sync-card__cta-icon" aria-hidden>⎘</span>
               複製同步碼
             </button>
             <button
               type="button"
-              className="sync-card__link"
+              className="sync-card__compact-link"
               data-testid="pwa-sync-recopy-all"
               disabled={busy || transactions.length === 0}
               onClick={() => void recopyAll()}
+              aria-label="重新複製全部"
             >
-              重新複製全部
+              全部
             </button>
           </div>
         </section>

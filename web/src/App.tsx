@@ -60,6 +60,7 @@ export default function App() {
                 deepLink={deepLink}
                 onDeepLinkConsumed={consumeDeepLink}
                 onOpenImport={() => setImportOpen(true)}
+                onNavigateTab={(t) => setTab(t)}
               />
             )}
             {tab === "budget" && <BudgetPage />}
