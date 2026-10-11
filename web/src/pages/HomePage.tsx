@@ -1,42 +1,57 @@
 import { useEffect, useMemo, useState } from "react";
 import type { DeepLinkPayload } from "../lib/deeplink";
 import { suggestCategoryId } from "../lib/import/suggestCategory";
-import { BudgetProgress } from "../components/BudgetProgress";
-import { TransactionRow } from "../components/TransactionRow";
 import {
-  allTimeSummary,
-  monthSummary,
-  totalBudgetForMonth,
+  expenseByCategory,
+  expenseByCategoryAllTime,
+  transactionsInYear,
 } from "../lib/analytics";
 import { formatDeepLinkDebug, localNowIso } from "../lib/datetime";
+import { groupTransactionsByDay } from "../lib/groupByDay";
 import {
-  formatCurrency,
-  formatMonthYear,
-  yearMonthFromDate,
-} from "../lib/format";
+  filterTransactionsForScope,
+  periodPickerLabel,
+  summaryForScope,
+  type HomeScope,
+} from "../lib/homeScope";
+import { formatCurrency, yearMonthFromDate } from "../lib/format";
+import { HomeChartCarousel } from "../components/home/HomeChartCarousel";
+import { HomeMenuDrawer } from "../components/home/HomeMenuDrawer";
+import { HomeTransactionGroups } from "../components/home/HomeTransactionGroups";
 import { PwaSyncControls } from "../components/PwaSyncControls";
-import { isInBrowserTab, isStandalonePwa } from "../lib/runtimeContext";
+import { isInBrowserTab } from "../lib/runtimeContext";
 import { useLedger } from "../store/LedgerContext";
 import type { Transaction } from "../types";
 import { TransactionFormPage, type TransactionFormPreset } from "./TransactionFormPage";
 
-function shiftMonth(year: number, month: number, delta: number) {
-  const d = new Date(year, month - 1 + delta, 1);
-  return { year: d.getFullYear(), month: d.getMonth() + 1 };
-}
+type AppTab = "budget" | "reports" | "categories";
 
 interface HomePageProps {
   onOpenImport: () => void;
+  onNavigateTab: (tab: AppTab) => void;
   deepLink: DeepLinkPayload | null;
   onDeepLinkConsumed: () => void;
 }
 
-export function HomePage({ onOpenImport, deepLink, onDeepLinkConsumed }: HomePageProps) {
-  const { loading, categories, transactions, budgets } = useLedger();
+export function HomePage({
+  onOpenImport,
+  onNavigateTab,
+  deepLink,
+  onDeepLinkConsumed,
+}: HomePageProps) {
+  const { loading, categories, transactions, budgets, removeTransaction, upsertTransaction } =
+    useLedger();
   const now = new Date();
   const current = yearMonthFromDate(now);
+  const [scope, setScope] = useState<HomeScope>("month");
   const [viewYear, setViewYear] = useState(current.year);
   const [viewMonth, setViewMonth] = useState(current.month);
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [periodOpen, setPeriodOpen] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
+  const [hideAmounts, setHideAmounts] = useState(false);
+  const [undoTx, setUndoTx] = useState<Transaction | null>(null);
 
   const [formType, setFormType] = useState<"expense" | "income" | null>(null);
   const [editing, setEditing] = useState<Transaction | null>(null);
@@ -77,21 +92,59 @@ export function HomePage({ onOpenImport, deepLink, onDeepLinkConsumed }: HomePag
     onDeepLinkConsumed();
   }, [deepLink, loading, onDeepLinkConsumed, categories, transactions]);
 
+  const scopedTxs = useMemo(
+    () => filterTransactionsForScope(transactions, scope, viewYear, viewMonth),
+    [transactions, scope, viewYear, viewMonth],
+  );
+
   const summary = useMemo(
-    () => monthSummary(transactions, viewYear, viewMonth),
-    [transactions, viewYear, viewMonth],
+    () => summaryForScope(transactions, scope, viewYear, viewMonth),
+    [transactions, scope, viewYear, viewMonth],
   );
-  const allTime = useMemo(() => allTimeSummary(transactions), [transactions]);
-  const totalBudget = useMemo(
-    () => totalBudgetForMonth(budgets, viewYear, viewMonth),
-    [budgets, viewYear, viewMonth],
-  );
-  const recent = useMemo(() => transactions.slice(0, 20), [transactions]);
+
+  const expenseBreakdown = useMemo(() => {
+    if (scope === "month") {
+      return expenseByCategory(transactions, categories, budgets, viewYear, viewMonth);
+    }
+    const expenseTxs =
+      scope === "year"
+        ? transactionsInYear(transactions, viewYear, "expense")
+        : transactions.filter((t) => t.type === "expense");
+    return expenseByCategoryAllTime(expenseTxs, categories);
+  }, [transactions, categories, budgets, scope, viewYear, viewMonth]);
+
+  const dayGroups = useMemo(() => groupTransactionsByDay(scopedTxs), [scopedTxs]);
 
   const categoryMap = useMemo(
     () => new Map(categories.map((c) => [c.id, c])),
     [categories],
   );
+
+  const expenseLabel =
+    scope === "all" ? "總支出" : scope === "year" ? "年支出" : "月支出";
+  const incomeLabel =
+    scope === "all" ? "總收入" : scope === "year" ? "年收入" : "月收入";
+  const balanceLabel =
+    scope === "all" ? "總結餘" : scope === "year" ? "年結餘" : "月結餘";
+
+  async function handleDelete(tx: Transaction) {
+    await removeTransaction(tx.id);
+    setUndoTx(tx);
+    window.setTimeout(() => setUndoTx(null), 8000);
+  }
+
+  async function undoDelete() {
+    if (!undoTx) return;
+    await upsertTransaction({
+      id: undoTx.id,
+      amount: undoTx.amount,
+      type: undoTx.type,
+      categoryId: undoTx.categoryId,
+      date: undoTx.date,
+      note: undoTx.note,
+    });
+    setUndoTx(null);
+  }
 
   if (formType || editing) {
     return (
@@ -113,42 +166,42 @@ export function HomePage({ onOpenImport, deepLink, onDeepLinkConsumed }: HomePag
     );
   }
 
+  const mask = (v: string) => (hideAmounts ? "••••" : v);
+
   return (
-    <div className="page page--home" data-testid="home-page">
-      <header className="page-header page-header--home">
-        <div>
-          <h1>記帳</h1>
-          <p className="subtitle">本機私密 · 離線可用</p>
-        </div>
-        <div className="month-nav" data-testid="home-month-nav">
-          <button
-            type="button"
-            className="month-nav__btn"
-            aria-label="上個月"
-            onClick={() => {
-              const n = shiftMonth(viewYear, viewMonth, -1);
-              setViewYear(n.year);
-              setViewMonth(n.month);
+    <div className="page page--home hk-home" data-testid="home-page" data-home-scope={scope}>
+      <header className="hk-topbar">
+        <button
+          type="button"
+          className="hk-topbar__icon"
+          aria-label="選單"
+          data-testid="home-menu-btn"
+          onClick={() => setMenuOpen(true)}
+        >
+          ☰
+        </button>
+        <button
+          type="button"
+          className="hk-topbar__period"
+          data-testid="home-period-picker"
+          onClick={() => setPeriodOpen(true)}
+        >
+          {periodPickerLabel(scope, viewYear, viewMonth)} ▼
+        </button>
+        <label className="hk-topbar__icon hk-topbar__cal" aria-label="選擇月份">
+          📅
+          <input
+            type="month"
+            className="hk-topbar__month-input"
+            value={`${viewYear}-${String(viewMonth).padStart(2, "0")}`}
+            onChange={(e) => {
+              const [y, m] = e.target.value.split("-").map(Number);
+              setViewYear(y);
+              setViewMonth(m);
+              setScope("month");
             }}
-          >
-            ‹
-          </button>
-          <span className="month-nav__label" data-testid="home-month-label">
-            {formatMonthYear(viewYear, viewMonth)}
-          </span>
-          <button
-            type="button"
-            className="month-nav__btn"
-            aria-label="下個月"
-            onClick={() => {
-              const n = shiftMonth(viewYear, viewMonth, 1);
-              setViewYear(n.year);
-              setViewMonth(n.month);
-            }}
-          >
-            ›
-          </button>
-        </div>
+          />
+        </label>
       </header>
 
       <PwaSyncControls
@@ -161,118 +214,109 @@ export function HomePage({ onOpenImport, deepLink, onDeepLinkConsumed }: HomePag
         <p className="muted center">載入中…</p>
       ) : (
         <>
-          <section className="hero-card">
-            <div className="hero-card__glow" aria-hidden />
-            <p className="hero-card__eyebrow">每月結餘</p>
-            <p
-              className={`hero-card__balance ${summary.balance >= 0 ? "positive" : "negative"}`}
-              data-testid="home-monthly-balance"
-            >
-              {formatCurrency(summary.balance, true)}
-            </p>
-            <div className="hero-card__split">
-              <div>
-                <span className="hero-card__mini-label">收入</span>
-                <span className="hero-card__mini-value income">
-                  {formatCurrency(summary.totalIncome)}
-                </span>
-              </div>
-              <div>
-                <span className="hero-card__mini-label">支出</span>
-                <span className="hero-card__mini-value expense">
-                  {formatCurrency(summary.totalExpense)}
-                </span>
-              </div>
+          <section className="hk-summary">
+            <div className="hk-summary__col hk-summary__col--expense">
+              <span className="hk-summary__label">{expenseLabel} ▸</span>
+              <p className="hk-summary__value tabular" data-testid="home-summary-expense">
+                {mask(formatCurrency(summary.totalExpense))}
+              </p>
             </div>
-            <div className="hero-card__alltime">
-              <span>累計總結餘</span>
-              <strong
-                className={allTime.balance >= 0 ? "income" : "over"}
-                data-testid="home-alltime-balance"
-              >
-                {formatCurrency(allTime.balance, true)}
-              </strong>
+            <div className="hk-summary__col hk-summary__col--income">
+              <span className="hk-summary__label">{incomeLabel} ▸</span>
+              <p className="hk-summary__value tabular" data-testid="home-summary-income">
+                {mask(formatCurrency(summary.totalIncome))}
+              </p>
             </div>
           </section>
 
-          {totalBudget != null ? (
-            <section className="section section--tight">
-              <div className="card card--soft">
-                <BudgetProgress
-                  title="本月預算"
-                  spent={summary.totalExpense}
-                  budget={totalBudget}
-                />
-              </div>
-            </section>
-          ) : (
-            <p className="hint pad-horizontal">尚未設定本月總預算，可至「預算」分頁新增。</p>
-          )}
+          <HomeChartCarousel
+            expenseByCategory={expenseBreakdown}
+            totalIncome={summary.totalIncome}
+            totalExpense={summary.totalExpense}
+            balance={summary.balance}
+            balanceLabel={balanceLabel}
+            hideAmounts={hideAmounts}
+            onToggleHide={() => setHideAmounts((v) => !v)}
+          />
 
-          <section className="section">
-            <h2>快速記帳</h2>
-            {isStandalonePwa() && (
-              <PwaSyncControls variant="import" />
-            )}
-            <div className="quick-actions quick-actions--triple">
-              <button
-                type="button"
-                className="btn-quick expense"
-                data-testid="quick-expense"
-                onClick={() => {
-                  setFormPreset(undefined);
-                  setFormType("expense");
-                }}
-              >
-                <span className="btn-quick__icon">−</span>
-                支出
-              </button>
-              <button
-                type="button"
-                className="btn-quick income"
-                data-testid="quick-income"
-                onClick={() => {
-                  setFormPreset(undefined);
-                  setFormType("income");
-                }}
-              >
-                <span className="btn-quick__icon">+</span>
-                收入
-              </button>
-              <button
-                type="button"
-                className="btn-quick import"
-                data-testid="quick-import"
-                onClick={onOpenImport}
-              >
-                <span className="btn-quick__icon">⎘</span>
-                匯入截圖
-              </button>
-            </div>
-          </section>
-
-          <section className="section">
-            <h2>最近交易</h2>
-            {recent.length === 0 ? (
-              <div className="empty-state">
-                <p>尚無交易</p>
-                <p className="muted">點擊上方按鈕記錄第一筆收入或支出。</p>
-              </div>
-            ) : (
-              <div className="list-card list-card--elevated">
-                {recent.map((tx) => (
-                  <TransactionRow
-                    key={tx.id}
-                    transaction={tx}
-                    category={categoryMap.get(tx.categoryId)}
-                    onClick={() => setEditing(tx)}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
+          <HomeTransactionGroups
+            groups={dayGroups}
+            categoryMap={categoryMap}
+            hideAmounts={hideAmounts}
+            onEdit={setEditing}
+            onDelete={(tx) => void handleDelete(tx)}
+          />
         </>
       )}
+
+      <button
+        type="button"
+        className="hk-fab"
+        aria-label="新增"
+        data-testid="home-fab"
+        onClick={() => setFabOpen(true)}
+      >
+        ＋
+      </button>
+
+      {fabOpen && (
+        <div className="hk-fab-sheet" role="dialog" data-testid="home-fab-sheet">
+          <button type="button" className="hk-fab-sheet__backdrop" aria-label="關閉" onClick={() => setFabOpen(false)} />
+          <div className="hk-fab-sheet__panel">
+            <button
+              type="button"
+              className="hk-fab-sheet__action expense"
+              data-testid="quick-expense"
+              onClick={() => {
+                setFormPreset(undefined);
+                setFormType("expense");
+                setFabOpen(false);
+              }}
+            >
+              支出
+            </button>
+            <button
+              type="button"
+              className="hk-fab-sheet__action income"
+              data-testid="quick-income"
+              onClick={() => {
+                setFormPreset(undefined);
+                setFormType("income");
+                setFabOpen(false);
+              }}
+            >
+              收入
+            </button>
+          </div>
+        </div>
+      )}
+
+      {periodOpen && (
+        <div className="hk-period-sheet" role="dialog" data-testid="home-period-sheet">
+          <button type="button" className="hk-fab-sheet__backdrop" aria-label="關閉" onClick={() => setPeriodOpen(false)} />
+          <div className="hk-fab-sheet__panel">
+            <button type="button" data-testid="home-scope-month" onClick={() => { setScope("month"); setPeriodOpen(false); }}>本月</button>
+            <button type="button" data-testid="home-scope-year" onClick={() => { setScope("year"); setPeriodOpen(false); }}>今年</button>
+            <button type="button" data-testid="home-scope-all" onClick={() => { setScope("all"); setPeriodOpen(false); }}>所有</button>
+          </div>
+        </div>
+      )}
+
+      {undoTx && (
+        <div className="toast toast--sync toast--success" role="status" data-testid="home-undo-toast">
+          <span>已刪除一筆</span>
+          <button type="button" className="btn-text btn-text--primary" data-testid="home-undo" onClick={() => void undoDelete()}>
+            復原
+          </button>
+        </div>
+      )}
+
+      <HomeMenuDrawer
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onOpenImport={onOpenImport}
+        onNavigate={onNavigateTab}
+      />
     </div>
   );
 }

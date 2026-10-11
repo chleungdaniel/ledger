@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import path from "node:path";
+import { openQuickAdd } from "./helpers";
 
 const artifactsDir = process.env.ARTIFACTS_DIR ?? "/opt/cursor/artifacts/screenshots";
 
@@ -15,9 +16,7 @@ async function addTx(
   amount: string,
   date?: Date,
 ) {
-  await (kind === "expense"
-    ? page.getByTestId("quick-expense")
-    : page.getByTestId("quick-income")).click();
+  await openQuickAdd(page, kind);
   await page.getByTestId("tx-amount").fill(amount);
   await page.getByTestId(`tx-cat-${category}`).click();
   if (date) {

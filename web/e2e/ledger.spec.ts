@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import path from "node:path";
+import { openQuickAdd } from "./helpers";
 
 const artifactsDir = process.env.ARTIFACTS_DIR ?? "/opt/cursor/artifacts/screenshots";
 
@@ -15,11 +16,7 @@ async function addTransaction(
   amount: string,
   date?: Date,
 ) {
-  const open =
-    kind === "expense"
-      ? page.getByTestId("quick-expense")
-      : page.getByTestId("quick-income");
-  await open.click();
+  await openQuickAdd(page, kind);
   await expect(page.getByTestId("tx-form-sheet")).toBeVisible();
   await page.getByTestId("tx-amount").fill(amount);
   await page.getByTestId(`tx-cat-${categoryName}`).click();
@@ -54,7 +51,7 @@ test("記帳 v4：截圖匯入審核與深層連結", async ({ page }) => {
   await expect(page.getByTestId("home-page")).toBeVisible();
 });
 
-test("記帳 v4：銀色主題、報表每月/所有", async ({ page }) => {
+test("記帳 v4：首頁 HK 主題、報表每月/所有", async ({ page }) => {
   const now = new Date();
   const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 15, 12, 0);
 
