@@ -17,15 +17,11 @@ function dayKey(d: Date): string {
 }
 
 function formatDayLabel(d: Date): string {
-  const datePart = new Intl.DateTimeFormat(locale, {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  })
-    .format(d)
-    .replace(/\//g, "/");
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
   const weekday = new Intl.DateTimeFormat(locale, { weekday: "long" }).format(d);
-  return `${datePart} ${weekday}`;
+  return `${y}/${m}/${day} ${weekday}`;
 }
 
 export function groupTransactionsByDay(transactions: Transaction[]): DayGroup[] {

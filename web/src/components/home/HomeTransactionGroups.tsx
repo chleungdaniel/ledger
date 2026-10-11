@@ -4,6 +4,9 @@ import type { DayGroup } from "../../lib/groupByDay";
 import { formatCurrency } from "../../lib/format";
 import type { Category, Transaction } from "../../types";
 
+const SWIPE_WIDTH = 88;
+const SWIPE_SNAP = 48;
+
 interface HomeTransactionGroupsProps {
   groups: DayGroup[];
   categoryMap: Map<string, Category>;
@@ -38,7 +41,9 @@ export function HomeTransactionGroups({
           data-day={group.dateKey}
         >
           <header className="hk-day-card__head">
-            <span>{group.label}</span>
+            <span className="hk-day-card__date" data-testid="home-day-label">
+              {group.label}
+            </span>
             <span
               className={`hk-day-card__net tabular ${group.net >= 0 ? "income" : "expense"}`}
               data-testid="home-day-net"
@@ -76,51 +81,82 @@ function SwipeRow({
   onDelete: () => void;
 }) {
   const startX = useRef(0);
-  const [offset, setOffset] = useState(0);
+  const lastTranslate = useRef(0);
+  const [dragDx, setDragDx] = useState(0);
+  const [revealed, setRevealed] = useState(false);
 
-  const title = transaction.note.trim() || category?.name || "交易";
-  const subtitle = transaction.note.trim() ? category?.name : undefined;
+  const note = transaction.note.trim();
+  const title = note ? note : category?.name || "交易";
+  const subtitle = note ? category?.name : undefined;
   const signed =
     transaction.type === "income"
       ? formatCurrency(transaction.amount, true)
       : formatCurrency(-transaction.amount, true);
 
+  const base = revealed ? -SWIPE_WIDTH : 0;
+  const translateX = Math.min(0, Math.max(-SWIPE_WIDTH, base + dragDx));
+  lastTranslate.current = translateX;
+  const revealDelete = revealed || translateX < -12;
+
+  function close() {
+    setRevealed(false);
+    setDragDx(0);
+  }
+
   return (
-    <div className="hk-swipe-row">
+    <div
+      className={`hk-swipe-row${revealed ? " hk-swipe-row--open" : ""}${revealDelete ? " hk-swipe-row--reveal" : ""}`}
+      data-testid="home-swipe-row"
+    >
+      <button
+        type="button"
+        className="hk-swipe-delete"
+        data-testid="home-swipe-delete"
+        aria-hidden={!revealDelete}
+        tabIndex={revealDelete ? 0 : -1}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+          close();
+        }}
+      >
+        刪除
+      </button>
       <button
         type="button"
         className="hk-tx-row"
-        style={{ transform: `translateX(${offset}px)` }}
-        onClick={onEdit}
+        style={{ transform: `translateX(${translateX}px)` }}
+        onClick={() => {
+          if (revealed) {
+            close();
+            return;
+          }
+          onEdit();
+        }}
         onTouchStart={(e) => {
           startX.current = e.touches[0].clientX;
+          setDragDx(0);
         }}
         onTouchMove={(e) => {
-          const dx = e.touches[0].clientX - startX.current;
-          setOffset(Math.min(0, Math.max(-88, dx)));
+          setDragDx(e.touches[0].clientX - startX.current);
         }}
         onTouchEnd={() => {
-          if (offset < -48) onDelete();
-          setOffset(0);
+          if (lastTranslate.current < -SWIPE_SNAP) setRevealed(true);
+          else close();
+          setDragDx(0);
         }}
       >
         <CategoryIcon name={category?.iconName ?? "other"} size="md" />
         <div className="hk-tx-row__text">
           <strong>{title}</strong>
-          {subtitle && <span className="muted">{subtitle}</span>}
+          {subtitle && <span className="muted hk-tx-row__subtitle">{subtitle}</span>}
         </div>
-        <span className={`hk-tx-row__amt tabular ${transaction.type === "income" ? "income" : "expense"}`}>
+        <span
+          className={`hk-tx-row__amt tabular ${transaction.type === "income" ? "income" : "expense"}`}
+          data-testid="home-tx-amount"
+        >
           {hideAmounts ? "•••" : signed}
         </span>
-      </button>
-      <button
-        type="button"
-        className="hk-swipe-delete"
-        data-testid="home-swipe-delete"
-        aria-label="刪除"
-        onClick={onDelete}
-      >
-        刪除
       </button>
     </div>
   );

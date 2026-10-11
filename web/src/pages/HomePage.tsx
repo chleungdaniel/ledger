@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type { DeepLinkPayload } from "../lib/deeplink";
 import { suggestCategoryId } from "../lib/import/suggestCategory";
 import {
@@ -249,46 +250,55 @@ export function HomePage({
         </>
       )}
 
-      <button
-        type="button"
-        className="hk-fab"
-        aria-label="新增"
-        data-testid="home-fab"
-        onClick={() => setFabOpen(true)}
-      >
-        ＋
-      </button>
-
-      {fabOpen && (
-        <div className="hk-fab-sheet" role="dialog" data-testid="home-fab-sheet">
-          <button type="button" className="hk-fab-sheet__backdrop" aria-label="關閉" onClick={() => setFabOpen(false)} />
-          <div className="hk-fab-sheet__panel">
-            <button
-              type="button"
-              className="hk-fab-sheet__action expense"
-              data-testid="quick-expense"
-              onClick={() => {
-                setFormPreset(undefined);
-                setFormType("expense");
-                setFabOpen(false);
-              }}
-            >
-              支出
-            </button>
-            <button
-              type="button"
-              className="hk-fab-sheet__action income"
-              data-testid="quick-income"
-              onClick={() => {
-                setFormPreset(undefined);
-                setFormType("income");
-                setFabOpen(false);
-              }}
-            >
-              收入
-            </button>
-          </div>
-        </div>
+      {createPortal(
+        <>
+          <button
+            type="button"
+            className="hk-fab"
+            aria-label="新增"
+            data-testid="home-fab"
+            onClick={() => setFabOpen(true)}
+          >
+            ＋
+          </button>
+          {fabOpen && (
+            <div className="hk-fab-sheet" role="dialog" data-testid="home-fab-sheet">
+              <button
+                type="button"
+                className="hk-fab-sheet__backdrop"
+                aria-label="關閉"
+                onClick={() => setFabOpen(false)}
+              />
+              <div className="hk-fab-sheet__panel">
+                <button
+                  type="button"
+                  className="hk-fab-sheet__action expense"
+                  data-testid="quick-expense"
+                  onClick={() => {
+                    setFormPreset(undefined);
+                    setFormType("expense");
+                    setFabOpen(false);
+                  }}
+                >
+                  支出
+                </button>
+                <button
+                  type="button"
+                  className="hk-fab-sheet__action income"
+                  data-testid="quick-income"
+                  onClick={() => {
+                    setFormPreset(undefined);
+                    setFormType("income");
+                    setFabOpen(false);
+                  }}
+                >
+                  收入
+                </button>
+              </div>
+            </div>
+          )}
+        </>,
+        document.body,
       )}
 
       {periodOpen && (

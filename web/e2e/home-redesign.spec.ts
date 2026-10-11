@@ -43,20 +43,24 @@ test("首頁 HK 設計：月/所有、分組、FAB、眼睛、深層連結", asy
   await expect(page.getByTestId("home-summary-expense")).toContainText("HK$30");
   await expect(page.getByTestId("home-summary-income")).toContainText("HK$0");
   await expect(page.getByTestId("home-balance-value")).toContainText("-HK$30");
+  await expect(page.getByTestId("home-tx-amount").first()).toContainText("-HK$");
 
   const dayGroups = page.getByTestId("home-day-group");
   await expect(dayGroups.first()).toBeVisible();
+  await expect(dayGroups.first().getByTestId("home-day-label")).toHaveText(
+    /\d{4}\/\d{2}\/\d{2} 星期/,
+  );
   const firstDayNet = dayGroups.first().getByTestId("home-day-net");
   await expect(firstDayNet).toContainText("-HK$30");
 
   await page.screenshot({
     path: path.join(artifactsDir, "v10-home-month-light.png"),
-    fullPage: true,
+    fullPage: false,
   });
   await page.emulateMedia({ colorScheme: "dark" });
   await page.screenshot({
     path: path.join(artifactsDir, "v10-home-month-dark.png"),
-    fullPage: true,
+    fullPage: false,
   });
   await page.emulateMedia({ colorScheme: "light" });
 
@@ -74,12 +78,33 @@ test("首頁 HK 設計：月/所有、分組、FAB、眼睛、深層連結", asy
 
   await page.screenshot({
     path: path.join(artifactsDir, "v10-home-all-light.png"),
-    fullPage: true,
+    fullPage: false,
   });
   await page.emulateMedia({ colorScheme: "dark" });
   await page.screenshot({
     path: path.join(artifactsDir, "v10-home-all-dark.png"),
-    fullPage: true,
+    fullPage: false,
+  });
+  await page.emulateMedia({ colorScheme: "light" });
+
+  await page.getByTestId("home-chart-carousel").getByLabel("分類列表").click();
+  await expect(page.getByTestId("home-category-legend")).toBeVisible();
+
+  const swipeRow = page.getByTestId("home-swipe-row").first();
+  await swipeRow.evaluate((el) => {
+    el.classList.add("hk-swipe-row--open", "hk-swipe-row--reveal");
+    const row = el.querySelector(".hk-tx-row") as HTMLElement | null;
+    if (row) row.style.transform = "translateX(-88px)";
+  });
+  await page.screenshot({
+    path: path.join(artifactsDir, "v10-home-swipe-delete.png"),
+    fullPage: false,
+  });
+
+  await page.locator(".hk-day-list").scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: path.join(artifactsDir, "v10-home-scrolled-days.png"),
+    fullPage: false,
   });
 
   await page.getByTestId("home-fab").click();

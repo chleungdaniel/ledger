@@ -1207,6 +1207,53 @@ body {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
+.sync-card--compact {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin: 6px 0 10px;
+}
+
+.sync-card__compact-text {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sync-card__compact-text .sync-card__icon {
+  font-size: 16px;
+}
+
+.sync-card__compact-cta {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-elevated));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--separator));
+}
+
+.sync-card__compact-link {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px;
+}
+
 .sync-card__body {
   display: flex;
   gap: 12px;
@@ -1418,6 +1465,8 @@ body {
   --hk-expense-accent: #f59e0b;
   --hk-income-accent: #3b82f6;
   --hk-fab: #ff5a5f;
+  --hk-fab-size: 58px;
+  --hk-fab-gap: 14px;
   --hk-surface: #ffffff;
 }
 
@@ -1429,13 +1478,15 @@ body {
 }
 
 .app-main:has(.hk-home) {
-  padding-bottom: calc(var(--tab-height) + var(--safe-bottom) + 96px);
+  padding-bottom: calc(
+    var(--tab-height) + var(--safe-bottom) + var(--hk-fab-size) + var(--hk-fab-gap) + 24px
+  );
 }
 
 .hk-home {
   background: var(--hk-surface);
   min-height: 100%;
-  padding: 0 16px 8px;
+  padding: 0 16px 20px;
 }
 
 .hk-topbar {
@@ -1588,6 +1639,48 @@ body {
   background: var(--hk-outline);
 }
 
+.hk-chart__legend {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0 4px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hk-chart__legend li {
+  display: grid;
+  grid-template-columns: 14px 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.hk-chart__legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  border: 2px solid var(--hk-outline);
+}
+
+.hk-chart__legend-name {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hk-chart__legend-amt {
+  font-weight: 700;
+}
+
+.hk-chart__legend-pct {
+  font-size: 12px;
+  min-width: 2.5rem;
+  text-align: right;
+}
+
 .hk-day-list {
   display: flex;
   flex-direction: column;
@@ -1605,10 +1698,19 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   padding: 10px 14px;
   font-size: 13px;
   font-weight: 600;
   border-bottom: 2px solid var(--hk-outline);
+}
+
+.hk-day-card__date {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .hk-day-card__net.expense {
@@ -1622,9 +1724,12 @@ body {
 .hk-swipe-row {
   position: relative;
   overflow: hidden;
+  background: var(--accent-red);
 }
 
 .hk-tx-row {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1637,6 +1742,7 @@ body {
   cursor: pointer;
   color: var(--text);
   transition: transform 0.15s ease;
+  will-change: transform;
 }
 
 .hk-day-card .hk-swipe-row:last-child .hk-tx-row {
@@ -1657,8 +1763,10 @@ body {
 }
 
 .hk-tx-row__amt {
+  flex-shrink: 0;
   font-size: 15px;
   font-weight: 700;
+  margin-left: auto;
 }
 
 .hk-tx-row__amt.expense {
@@ -1676,11 +1784,19 @@ body {
   bottom: 0;
   width: 88px;
   border: none;
-  background: var(--accent-red);
+  background: transparent;
   color: #fff;
   font-weight: 700;
   cursor: pointer;
   z-index: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hk-swipe-row--open .hk-swipe-delete,
+.hk-swipe-row--reveal .hk-swipe-delete {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .hk-empty {
@@ -1694,9 +1810,9 @@ body {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(var(--tab-height) + var(--safe-bottom) + 12px);
-  width: 58px;
-  height: 58px;
+  bottom: calc(var(--tab-height) + var(--safe-bottom) + var(--hk-fab-gap));
+  width: var(--hk-fab-size);
+  height: var(--hk-fab-size);
   border-radius: 50%;
   border: 3px solid var(--hk-outline);
   background: var(--hk-fab);
