@@ -3,20 +3,23 @@ import { createPortal } from "react-dom";
 import type { DeepLinkPayload } from "../lib/deeplink";
 import { suggestCategoryId } from "../lib/import/suggestCategory";
 import {
+  allTimeSummary,
   expenseByCategory,
   expenseByCategoryAllTime,
-  transactionsInYear,
+  monthSummary,
 } from "../lib/analytics";
 import { formatDeepLinkDebug, localNowIso } from "../lib/datetime";
 import { groupTransactionsByDay } from "../lib/groupByDay";
 import {
   filterTransactionsForScope,
   periodPickerLabel,
-  summaryForScope,
   type HomeScope,
 } from "../lib/homeScope";
 import { formatCurrency, yearMonthFromDate } from "../lib/format";
-import { HomeChartCarousel } from "../components/home/HomeChartCarousel";
+import {
+  HomeChartCarousel,
+  type CarouselSummaryScope,
+} from "../components/home/HomeChartCarousel";
 import { HomeMenuDrawer } from "../components/home/HomeMenuDrawer";
 import { HomeTransactionGroups } from "../components/home/HomeTransactionGroups";
 import { PwaSyncControls } from "../components/PwaSyncControls";
@@ -52,6 +55,8 @@ export function HomePage({
   const [periodOpen, setPeriodOpen] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
   const [hideAmounts, setHideAmounts] = useState(false);
+  const [carouselSummaryScope, setCarouselSummaryScope] =
+    useState<CarouselSummaryScope>("month");
   const [undoTx, setUndoTx] = useState<Transaction | null>(null);
 
   const [formType, setFormType] = useState<"expense" | "income" | null>(null);
@@ -98,21 +103,29 @@ export function HomePage({
     [transactions, scope, viewYear, viewMonth],
   );
 
-  const summary = useMemo(
-    () => summaryForScope(transactions, scope, viewYear, viewMonth),
-    [transactions, scope, viewYear, viewMonth],
+  const monthSummaryData = useMemo(
+    () => monthSummary(transactions, viewYear, viewMonth),
+    [transactions, viewYear, viewMonth],
   );
+  const allSummaryData = useMemo(
+    () => allTimeSummary(transactions),
+    [transactions],
+  );
+  const summaryForDisplay =
+    carouselSummaryScope === "month" ? monthSummaryData : allSummaryData;
 
-  const expenseBreakdown = useMemo(() => {
-    if (scope === "month") {
-      return expenseByCategory(transactions, categories, budgets, viewYear, viewMonth);
-    }
-    const expenseTxs =
-      scope === "year"
-        ? transactionsInYear(transactions, viewYear, "expense")
-        : transactions.filter((t) => t.type === "expense");
+  const monthBreakdown = useMemo(
+    () => expenseByCategory(transactions, categories, budgets, viewYear, viewMonth),
+    [transactions, categories, budgets, viewYear, viewMonth],
+  );
+  const allBreakdown = useMemo(() => {
+    const expenseTxs = transactions.filter((t) => t.type === "expense");
     return expenseByCategoryAllTime(expenseTxs, categories);
-  }, [transactions, categories, budgets, scope, viewYear, viewMonth]);
+  }, [transactions, categories]);
+
+  useEffect(() => {
+    if (scope === "all") setCarouselSummaryScope("all");
+  }, [scope]);
 
   const dayGroups = useMemo(() => groupTransactionsByDay(scopedTxs), [scopedTxs]);
 
@@ -122,11 +135,9 @@ export function HomePage({
   );
 
   const expenseLabel =
-    scope === "all" ? "總支出" : scope === "year" ? "年支出" : "月支出";
+    carouselSummaryScope === "month" ? "月支出" : "總支出";
   const incomeLabel =
-    scope === "all" ? "總收入" : scope === "year" ? "年收入" : "月收入";
-  const balanceLabel =
-    scope === "all" ? "總結餘" : scope === "year" ? "年結餘" : "月結餘";
+    carouselSummaryScope === "month" ? "月收入" : "總收入";
 
   async function handleDelete(tx: Transaction) {
     await removeTransaction(tx.id);
@@ -215,29 +226,46 @@ export function HomePage({
         <p className="muted center">載入中…</p>
       ) : (
         <>
-          <section className="hk-summary">
+          <section
+            className="hk-summary"
+            data-testid="home-summary"
+            data-summary-scope={carouselSummaryScope}
+          >
             <div className="hk-summary__col hk-summary__col--expense">
-              <span className="hk-summary__label">{expenseLabel} ▸</span>
+              <span className="hk-summary__label" data-testid="home-summary-expense-label">
+                {expenseLabel} ▸
+              </span>
               <p className="hk-summary__value tabular" data-testid="home-summary-expense">
-                {mask(formatCurrency(summary.totalExpense))}
+                {mask(formatCurrency(summaryForDisplay.totalExpense))}
               </p>
             </div>
             <div className="hk-summary__col hk-summary__col--income">
-              <span className="hk-summary__label">{incomeLabel} ▸</span>
+              <span className="hk-summary__label" data-testid="home-summary-income-label">
+                {incomeLabel} ▸
+              </span>
               <p className="hk-summary__value tabular" data-testid="home-summary-income">
-                {mask(formatCurrency(summary.totalIncome))}
+                {mask(formatCurrency(summaryForDisplay.totalIncome))}
               </p>
             </div>
           </section>
 
           <HomeChartCarousel
-            expenseByCategory={expenseBreakdown}
-            totalIncome={summary.totalIncome}
-            totalExpense={summary.totalExpense}
-            balance={summary.balance}
-            balanceLabel={balanceLabel}
+            month={{
+              expenseByCategory: monthBreakdown,
+              totalExpense: monthSummaryData.totalExpense,
+              totalIncome: monthSummaryData.totalIncome,
+              balance: monthSummaryData.balance,
+            }}
+            all={{
+              expenseByCategory: allBreakdown,
+              totalExpense: allSummaryData.totalExpense,
+              totalIncome: allSummaryData.totalIncome,
+              balance: allSummaryData.balance,
+            }}
+            periodScope={scope}
             hideAmounts={hideAmounts}
             onToggleHide={() => setHideAmounts((v) => !v)}
+            onSummaryScopeChange={setCarouselSummaryScope}
           />
 
           <HomeTransactionGroups

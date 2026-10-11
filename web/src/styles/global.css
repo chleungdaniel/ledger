@@ -1578,6 +1578,55 @@ body {
   margin: 4px 0 16px;
 }
 
+.hk-chart__snap {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  margin: 0 -16px;
+  padding: 0;
+}
+
+.hk-chart__snap::-webkit-scrollbar {
+  display: none;
+}
+
+.hk-chart__slide {
+  flex: 0 0 100%;
+  min-width: 100%;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+
+.hk-chart__slide--legend {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 240px;
+  border: 2px solid var(--hk-outline);
+  border-radius: 24px;
+  background: var(--hk-surface);
+  padding: 16px;
+}
+
+.hk-chart__legend-scope {
+  margin: 8px 0 0;
+  font-size: 12px;
+  text-align: center;
+}
+
+.hk-summary__label,
+.hk-summary__value {
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease;
+}
+
 .hk-chart__donut-wrap {
   position: relative;
   border: 2px solid var(--hk-outline);
