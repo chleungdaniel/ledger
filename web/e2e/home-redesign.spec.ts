@@ -72,9 +72,10 @@ test("首頁 HK 設計：月/所有、分組、FAB、眼睛、深層連結", asy
   await page.getByTestId("home-period-picker").click();
   await page.getByTestId("home-scope-all").click();
   await expect(page.getByTestId("home-page")).toHaveAttribute("data-home-scope", "all");
+  await expect(page.getByTestId("home-summary-expense-label")).toContainText("總支出");
   await expect(page.getByTestId("home-summary-expense")).toContainText("HK$30");
   await expect(page.getByTestId("home-summary-income")).toContainText("HK$100");
-  await expect(page.getByTestId("home-balance-value")).toContainText("+HK$70");
+  await expect(page.getByTestId("home-balance-value-all")).toContainText("+HK$70");
 
   await page.screenshot({
     path: path.join(artifactsDir, "v10-home-all-light.png"),
@@ -87,7 +88,7 @@ test("首頁 HK 設計：月/所有、分組、FAB、眼睛、深層連結", asy
   });
   await page.emulateMedia({ colorScheme: "light" });
 
-  await page.getByTestId("home-chart-carousel").getByLabel("分類列表").click();
+  await page.getByTestId("home-chart-dot-2").click();
   await expect(page.getByTestId("home-category-legend")).toBeVisible();
 
   const swipeRow = page.getByTestId("home-swipe-row").first();
