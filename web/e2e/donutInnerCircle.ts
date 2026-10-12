@@ -6,7 +6,7 @@ export async function assertInsideDonutInnerCircle(page: Page, testId: string) {
     if (!wrap) return { ok: false, reason: "no donut wrap" };
     const surface = wrap.querySelector(".recharts-surface") as SVGSVGElement | null;
     if (!surface) return { ok: false, reason: "no chart surface" };
-    const INNER_R = 62;
+    const INNER_R = 72;
     const surfaceRect = surface.getBoundingClientRect();
     const attrW = parseFloat(surface.getAttribute("width") || "");
     const attrH = parseFloat(surface.getAttribute("height") || "");

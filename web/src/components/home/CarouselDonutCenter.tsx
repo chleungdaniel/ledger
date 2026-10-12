@@ -1,50 +1,46 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import {
+  computeCarouselAmountFontSizePx,
+  splitCarouselBalance,
+} from "../../lib/carouselBalanceFormat";
+import {
   CAROUSEL_OFFSET_AMOUNT_Y,
   CAROUSEL_OFFSET_LABEL_Y,
-  CAROUSEL_OFFSET_NOTE_LINE1_Y,
-  CAROUSEL_OFFSET_NOTE_LINE2_Y,
   maxCenterTextWidthPx,
   measureDonutScreenGeometry,
-  type DonutScreenGeometry,
 } from "../../lib/carouselDonutGeometry";
-import { CarouselFittedSvgNote, CarouselFittedSvgText } from "./CarouselFittedSvgText";
 
 interface CarouselDonutCenterProps {
   balanceLabel: string;
-  balanceText: string;
-  openingNoteLine1?: string | null;
-  openingNoteLine2?: string | null;
+  balanceAmount: number;
   hideAmounts: boolean;
   onToggleHide: () => void;
   eyeTestId: string;
   balanceTestId: string;
-  openingNoteTestId?: string;
 }
 
 export function CarouselDonutCenter({
   balanceLabel,
-  balanceText,
-  openingNoteLine1,
-  openingNoteLine2,
+  balanceAmount,
   hideAmounts,
   onToggleHide,
   eyeTestId,
   balanceTestId,
-  openingNoteTestId,
 }: CarouselDonutCenterProps) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const [geom, setGeom] = useState<DonutScreenGeometry | null>(null);
-  const [amountMaxW, setAmountMaxW] = useState(72);
-  const [noteMaxW, setNoteMaxW] = useState(64);
+  const amountRef = useRef<HTMLParagraphElement>(null);
+  const [fontSizePx, setFontSizePx] = useState(22);
+  const [labelMaxW, setLabelMaxW] = useState<number | undefined>(undefined);
+
+  const parts = hideAmounts ? null : splitCarouselBalance(balanceAmount);
 
   const remeasure = useCallback(() => {
+    const split = hideAmounts ? null : splitCarouselBalance(balanceAmount);
     const run = async () => {
-      const root = rootRef.current;
-      const wrap = root?.closest(".hk-chart__donut-wrap") as HTMLElement | null;
-      if (!wrap) return;
+      const amountEl = amountRef.current;
+      const wrap = amountEl?.closest(".hk-chart__donut-wrap") as HTMLElement | null;
+      if (!wrap || !amountEl) return;
 
-      if (typeof document !== "undefined" && document.fonts?.ready) {
+      if (document.fonts?.ready) {
         try {
           await document.fonts.ready;
         } catch {
@@ -59,88 +55,73 @@ export function CarouselDonutCenter({
       const measured = measureDonutScreenGeometry(wrap);
       if (!measured) return;
 
-      setGeom(measured);
-      setAmountMaxW(
-        maxCenterTextWidthPx(measured.innerRadiusPx, CAROUSEL_OFFSET_AMOUNT_Y),
+      const avail = maxCenterTextWidthPx(
+        measured.innerRadiusPx,
+        CAROUSEL_OFFSET_AMOUNT_Y,
+      );
+      setLabelMaxW(
+        maxCenterTextWidthPx(measured.innerRadiusPx, CAROUSEL_OFFSET_LABEL_Y),
       );
 
-      const noteOffset =
-        (CAROUSEL_OFFSET_NOTE_LINE1_Y + CAROUSEL_OFFSET_NOTE_LINE2_Y) / 2;
-      setNoteMaxW(maxCenterTextWidthPx(measured.innerRadiusPx, noteOffset));
+      if (hideAmounts || !split) {
+        setFontSizePx(22);
+        return;
+      }
+
+      let size = computeCarouselAmountFontSizePx(avail, split.charCount);
+      amountEl.style.fontSize = `${size}px`;
+      while (size > 15 && amountEl.scrollWidth > avail + 1) {
+        size -= 0.5;
+        amountEl.style.fontSize = `${size}px`;
+      }
+      setFontSizePx(size);
     };
     void run();
-  }, []);
+  }, [balanceAmount, hideAmounts]);
 
   useLayoutEffect(() => {
-    void remeasure();
-  }, [remeasure, balanceText, openingNoteLine1, openingNoteLine2, hideAmounts]);
+    remeasure();
+  }, [remeasure]);
 
   useLayoutEffect(() => {
-    const root = rootRef.current;
-    const wrap = root?.closest(".hk-chart__donut-wrap") as HTMLElement | null;
+    const amountEl = amountRef.current;
+    const wrap = amountEl?.closest(".hk-chart__donut-wrap") as HTMLElement | null;
     if (!wrap) return;
 
-    const observer = new ResizeObserver(() => {
-      void remeasure();
-    });
+    const observer = new ResizeObserver(() => remeasure());
     observer.observe(wrap);
     const surface = wrap.querySelector(".recharts-surface");
     if (surface) observer.observe(surface);
-
     return () => observer.disconnect();
   }, [remeasure]);
 
-  const labelMaxW =
-    geom != null
-      ? maxCenterTextWidthPx(geom.innerRadiusPx, CAROUSEL_OFFSET_LABEL_Y)
-      : 0;
-
-  const showOpening =
-    openingNoteLine1 &&
-    openingNoteLine2 &&
-    !hideAmounts &&
-    openingNoteTestId;
-
   return (
-    <div
-      ref={rootRef}
-      className="hk-chart__center"
-      data-donut-inner-radius-px={geom?.innerRadiusPx?.toFixed(2) ?? ""}
-    >
-      <span className="hk-chart__coin" aria-hidden>🪙</span>
+    <div className="hk-chart__center">
       <button
         type="button"
         className="hk-chart__balance-label"
         data-testid={eyeTestId}
-        style={{ maxWidth: labelMaxW > 0 ? `${labelMaxW}px` : undefined }}
+        style={labelMaxW != null ? { maxWidth: `${labelMaxW}px` } : undefined}
         onClick={onToggleHide}
       >
         {balanceLabel} 👁
       </button>
-      <CarouselFittedSvgText
-        text={balanceText}
-        maxWidthPx={amountMaxW}
-        viewHeight={88}
-        fontSizeUnits={52}
-        fontWeight={800}
-        testId={balanceTestId}
-      />
-      {showOpening && (
-        <CarouselFittedSvgNote
-          line1={openingNoteLine1}
-          line2={openingNoteLine2}
-          maxWidthPx={noteMaxW}
-          testId={openingNoteTestId}
-        />
-      )}
-      {openingNoteLine1 && hideAmounts && openingNoteTestId && (
-        <CarouselFittedSvgNote
-          line1="含期初結餘"
-          line2="••••"
-          maxWidthPx={noteMaxW}
-          testId={openingNoteTestId}
-        />
-      )}
+      <p
+        ref={amountRef}
+        className="hk-chart__balance-value tabular"
+        data-testid={balanceTestId}
+        data-font-size-px={fontSizePx.toFixed(1)}
+        style={{ fontSize: `${fontSizePx}px` }}
+      >
+        {hideAmounts ? (
+          "••••"
+        ) : (
+          <>
+            {parts!.main}
+            <small className="hk-chart__balance-decimals">.{parts!.decimals}</small>
+          </>
+        )}
+      </p>
     </div>
   );
 }

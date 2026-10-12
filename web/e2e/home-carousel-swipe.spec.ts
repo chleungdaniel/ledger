@@ -62,7 +62,7 @@ test("首頁圓餅滑動：月結餘↔所有結餘與摘要同步", async ({ pa
   await expect(carousel).toHaveAttribute("data-carousel-balance-label", "所有結餘");
   await expect(page.getByTestId("home-summary-income-label")).toContainText("總收入");
   await expect(page.getByTestId("home-summary-income")).toContainText("HK$80");
-  await expect(page.getByTestId("home-balance-value-all")).toContainText("+HK$55");
+  await expect(page.getByTestId("home-balance-value-all")).toContainText("HK$55");
 
   await page.screenshot({
     path: path.join(artifactsDir, "v11-carousel-all.png"),
