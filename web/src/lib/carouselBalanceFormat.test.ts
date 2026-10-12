@@ -1,34 +1,29 @@
 import { describe, expect, it } from "vitest";
 import {
-  carouselBalanceMaxWidthPx,
+  computeCarouselAmountFontSizePx,
   formatCarouselBalance,
-  shrinkFontSizeToFit,
+  splitCarouselBalance,
 } from "./carouselBalanceFormat";
 
 describe("formatCarouselBalance", () => {
-  it("always uses 2 decimal places with sign", () => {
-    expect(formatCarouselBalance(95232.4, true)).toBe("+HK$95,232.40");
-    expect(formatCarouselBalance(-1234567.89, true)).toBe("-HK$1,234,567.89");
-    expect(formatCarouselBalance(25, false)).toBe("HK$25.00");
+  it("uses 2 dp without plus for positive", () => {
+    expect(formatCarouselBalance(95232.4)).toBe("HK$95,232.40");
+    expect(formatCarouselBalance(-1234567.89)).toBe("-HK$1,234,567.89");
   });
 });
 
-describe("shrinkFontSizeToFit", () => {
-  it("reduces font until text fits max width", () => {
-    const widths: Record<number, number> = {
-      22: 200,
-      18: 150,
-      14: 100,
-      10: 80,
-    };
-    const measure = (fs: number) => widths[fs] ?? fs * 9;
-    const result = shrinkFontSizeToFit(measure, 100, 22, 7, 4);
-    expect(result).toBe(14);
+describe("splitCarouselBalance", () => {
+  it("splits main and decimal parts", () => {
+    const p = splitCarouselBalance(95232.4);
+    expect(p.main).toBe("HK$95,232");
+    expect(p.decimals).toBe("40");
+    expect(p.measureText).toBe("HK$95,232.40");
   });
 });
 
-describe("carouselBalanceMaxWidthPx", () => {
-  it("scales with donut wrap width", () => {
-    expect(carouselBalanceMaxWidthPx(390)).toBeCloseTo(390 * (124 / 220) * 0.9, 5);
+describe("computeCarouselAmountFontSizePx", () => {
+  it("caps at 24 and floors at 15", () => {
+    expect(computeCarouselAmountFontSizePx(500, 5)).toBe(24);
+    expect(computeCarouselAmountFontSizePx(50, 20)).toBe(15);
   });
 });

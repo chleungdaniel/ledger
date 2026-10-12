@@ -1,7 +1,7 @@
 const locale = "zh-Hant-HK";
 
-/** Home carousel center amount: always 2 decimal places. */
-export function formatCarouselBalance(amount: number, showSign = false): string {
+/** Home carousel: 2 dp, no leading '+' for positive balances. */
+export function formatCarouselBalance(amount: number): string {
   const abs = Math.abs(amount);
   const formatted = new Intl.NumberFormat(locale, {
     style: "currency",
@@ -10,32 +10,56 @@ export function formatCarouselBalance(amount: number, showSign = false): string 
     maximumFractionDigits: 2,
   }).format(abs);
   if (amount < 0) return `-${formatted}`;
-  if (showSign && amount > 0) return `+${formatted}`;
   return formatted;
 }
 
-/** Donut inner diameter / chart height in Recharts coordinate space. */
-export const CAROUSEL_INNER_DIAMETER_RATIO = (62 * 2) / 220;
-
-export function carouselBalanceMaxWidthPx(donutWrapWidthPx: number, margin = 0.9): number {
-  return donutWrapWidthPx * CAROUSEL_INNER_DIAMETER_RATIO * margin;
+export interface CarouselBalanceParts {
+  negative: boolean;
+  /** Currency + integer part, e.g. HK$95,232 or -HK$1,234,567 */
+  main: string;
+  /** Two decimal digits without dot, e.g. 40 */
+  decimals: string;
+  /** Full single-line string for width estimation */
+  measureText: string;
+  charCount: number;
 }
 
-export function shrinkFontSizeToFit(
-  measureWidth: (fontSizePx: number) => number,
-  maxWidthPx: number,
-  baseFontPx = 22,
-  minFontPx = 7,
-  step = 0.5,
+export function splitCarouselBalance(amount: number): CarouselBalanceParts {
+  const negative = amount < 0;
+  const abs = Math.abs(amount);
+  const formatted = new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: "HKD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(abs);
+  const dot = formatted.lastIndexOf(".");
+  const mainAbs = dot >= 0 ? formatted.slice(0, dot) : formatted;
+  const decimals = dot >= 0 ? formatted.slice(dot + 1) : "00";
+  const main = negative ? `-${mainAbs}` : mainAbs;
+  const measureText = `${main}.${decimals}`;
+  return {
+    negative,
+    main,
+    decimals,
+    measureText,
+    charCount: measureText.length,
+  };
+}
+
+export function computeCarouselAmountFontSizePx(
+  availableWidthPx: number,
+  charCount: number,
+  maxPx = 24,
+  minPx = 15,
+  charWidthFactor = 0.6,
 ): number {
-  let fs = baseFontPx;
-  while (fs > minFontPx && measureWidth(fs) > maxWidthPx) {
-    fs -= step;
-  }
-  return fs;
+  if (charCount <= 0 || availableWidthPx <= 0) return maxPx;
+  const byWidth = availableWidthPx / (charCount * charWidthFactor);
+  return Math.max(minPx, Math.min(maxPx, byWidth));
 }
 
-/** Re-export for opening-balance note on carousel (2 dp, no sign). */
+/** Opening-balance footnote under donut (2 dp). */
 export function formatCarouselCurrency(amount: number): string {
-  return formatCarouselBalance(amount, false);
+  return formatCarouselBalance(amount);
 }

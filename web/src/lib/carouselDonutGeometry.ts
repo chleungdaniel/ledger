@@ -1,17 +1,14 @@
 /** Recharts Pie coordinate space (must match HomeChartCarousel). */
 export const CAROUSEL_CHART_HEIGHT = 220;
-export const CAROUSEL_PIE_INNER_RADIUS = 62;
+export const CAROUSEL_PIE_INNER_RADIUS = 72;
 export const CAROUSEL_PIE_OUTER_RADIUS = 88;
 
 /** Max text width as a fraction of the horizontal chord at this Y offset. */
 export const CAROUSEL_CENTER_TEXT_WIDTH_FACTOR = 0.75;
 
 /** Estimated vertical offset from donut center to each stack row (px, screen space). */
-export const CAROUSEL_OFFSET_COIN_Y = -26;
-export const CAROUSEL_OFFSET_LABEL_Y = -12;
-export const CAROUSEL_OFFSET_AMOUNT_Y = 10;
-export const CAROUSEL_OFFSET_NOTE_LINE1_Y = 28;
-export const CAROUSEL_OFFSET_NOTE_LINE2_Y = 40;
+export const CAROUSEL_OFFSET_LABEL_Y = -8;
+export const CAROUSEL_OFFSET_AMOUNT_Y = 6;
 
 export interface DonutScreenGeometry {
   centerX: number;

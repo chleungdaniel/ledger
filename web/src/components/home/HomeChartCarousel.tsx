@@ -2,10 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 import { colorForCategory } from "../../lib/chartColors";
 import type { Category } from "../../types";
-import {
-  formatCarouselBalance,
-  formatCarouselCurrency,
-} from "../../lib/carouselBalanceFormat";
+import { formatCarouselCurrency } from "../../lib/carouselBalanceFormat";
 import { formatCurrency } from "../../lib/format";
 import {
   CAROUSEL_CHART_HEIGHT,
@@ -84,7 +81,8 @@ function DonutSlide({
     () => pieDataFromBreakdown(data.expenseByCategory),
     [data.expenseByCategory],
   );
-  const displayBalance = hideAmounts ? "••••" : formatCarouselBalance(balance, true);
+  const showOpeningNote =
+    slideId === "all" && openingBalanceNote != null && openingBalanceNote > 0;
 
   return (
     <div
@@ -114,27 +112,22 @@ function DonutSlide({
         </ResponsiveContainer>
         <CarouselDonutCenter
           balanceLabel={balanceLabel}
-          balanceText={displayBalance}
-          openingNoteLine1={
-            slideId === "all" && openingBalanceNote != null && openingBalanceNote > 0
-              ? "含期初結餘"
-              : null
-          }
-          openingNoteLine2={
-            slideId === "all" && openingBalanceNote != null && openingBalanceNote > 0
-              ? formatCarouselCurrency(openingBalanceNote)
-              : null
-          }
+          balanceAmount={balance}
           hideAmounts={hideAmounts}
           onToggleHide={onToggleHide}
           eyeTestId={slideId === "month" ? "home-eye-toggle" : "home-eye-toggle-all"}
           balanceTestId={slideId === "month" ? "home-balance-value" : "home-balance-value-all"}
-          openingNoteTestId={
-            slideId === "all" && openingBalanceNote != null && openingBalanceNote > 0
-              ? "home-opening-balance-note"
-              : undefined
-          }
         />
+        {showOpeningNote && (
+          <p
+            className="hk-chart__opening-footnote muted"
+            data-testid="home-opening-balance-note"
+          >
+            {hideAmounts
+              ? "含期初結餘 ••••"
+              : `含期初結餘 ${formatCarouselCurrency(openingBalanceNote)}`}
+          </p>
+        )}
       </div>
     </div>
   );

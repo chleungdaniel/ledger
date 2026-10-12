@@ -16,7 +16,7 @@ describe("carouselDonutGeometry", () => {
   });
 
   it("applies 75% width factor", () => {
-    const r = 62;
+    const r = 72;
     expect(maxCenterTextWidthPx(r, 0)).toBeCloseTo(2 * r * 0.75, 5);
   });
 

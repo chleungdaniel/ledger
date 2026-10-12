@@ -75,7 +75,7 @@ test("首頁 HK 設計：月/所有、分組、FAB、眼睛、深層連結", asy
   await expect(page.getByTestId("home-summary-expense-label")).toContainText("總支出");
   await expect(page.getByTestId("home-summary-expense")).toContainText("HK$30");
   await expect(page.getByTestId("home-summary-income")).toContainText("HK$100");
-  await expect(page.getByTestId("home-balance-value-all")).toContainText("+HK$70");
+  await expect(page.getByTestId("home-balance-value-all")).toContainText("HK$70");
 
   await page.screenshot({
     path: path.join(artifactsDir, "v10-home-all-light.png"),
