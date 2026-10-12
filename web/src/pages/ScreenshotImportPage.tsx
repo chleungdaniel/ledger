@@ -8,9 +8,10 @@ import { loadFxRates, saveFxRates } from "../lib/import/fxSettings";
 import { recognizeImageFiles } from "../lib/import/ocr";
 import {
   OCTOPUS_OCR_FIXTURE,
-  parseWalletOcrText,
   WALLET_OCR_FIXTURE,
 } from "../lib/import/parseWalletOcr";
+import { PAYME_OCR_FIXTURE } from "../lib/import/parsePayMeOcr";
+import { parseScreenshotOcrText } from "../lib/import/parseScreenshotOcr";
 import { suggestCategoryId } from "../lib/import/suggestCategory";
 import type { ImportCandidate } from "../lib/import/types";
 import { useLedger } from "../store/LedgerContext";
@@ -47,9 +48,11 @@ export function ScreenshotImportPage({ onClose, fixtureKey }: ScreenshotImportPa
         ? OCTOPUS_OCR_FIXTURE
         : fixtureKey === "wallet"
           ? WALLET_OCR_FIXTURE
-          : "";
+          : fixtureKey === "payme"
+            ? PAYME_OCR_FIXTURE
+            : "";
     if (!text) return;
-    setCandidates(applySuggestions(parseWalletOcrText(text)));
+    setCandidates(applySuggestions(parseScreenshotOcrText(text)));
     setPhase("review");
   }, [fixtureKey, loading, applySuggestions]);
 
@@ -60,9 +63,11 @@ export function ScreenshotImportPage({ onClose, fixtureKey }: ScreenshotImportPa
     try {
       saveFxRates({ TWD: Number(fxTwd) || loadFxRates().TWD });
       const text = await recognizeImageFiles(Array.from(files));
-      const parsed = parseWalletOcrText(text);
+      const parsed = parseScreenshotOcrText(text);
       if (parsed.length === 0) {
-        setError("未能從截圖辨識到交易列，請確認為 Wallet / 八達通「最新交易」列表。");
+        setError(
+          "未能從截圖辨識到交易列，請確認為 Wallet / 八達通 / PayMe 交易紀錄截圖。",
+        );
         setPhase("pick");
         return;
       }
@@ -109,7 +114,7 @@ export function ScreenshotImportPage({ onClose, fixtureKey }: ScreenshotImportPa
       {phase === "pick" && (
         <div className="import-body pad-horizontal">
           <p className="muted">
-            從 iPhone Wallet「最新交易」或八達通交易紀錄截圖。影像只在本機 OCR，不會上傳。
+            從 iPhone Wallet「最新交易」、八達通或 PayMe 交易紀錄截圖。影像只在本機 OCR，不會上傳。
           </p>
           <label className="field">
             <span>台幣 → 港幣匯率（預填 HKD 金額）</span>
