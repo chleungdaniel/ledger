@@ -14,8 +14,14 @@ export interface SyncTransactionRecord {
   updatedAt: string;
 }
 
+export interface SyncOpeningBalance {
+  amount: number;
+  updatedAt: string;
+}
+
 export interface SyncPayload {
   v: 1;
   exportedAt: string;
   transactions: SyncTransactionRecord[];
+  openingBalance?: SyncOpeningBalance;
 }

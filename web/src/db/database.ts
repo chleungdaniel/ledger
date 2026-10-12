@@ -2,7 +2,10 @@ import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import { createSeedCategories, V2_CATEGORY_MIGRATIONS } from "../data/seed";
 import { isValidTransactionId } from "../lib/pwaSync/merge";
 import { newId } from "../lib/format";
+import type { OpeningBalanceSetting } from "../lib/openingBalance";
 import type { Category, LedgerBackup, MonthlyBudget, Transaction } from "../types";
+
+const OPENING_BALANCE_META_KEY = "openingBalance";
 
 interface LedgerDB extends DBSchema {
   categories: {
@@ -113,18 +116,50 @@ export async function loadAllData(): Promise<{
   categories: Category[];
   transactions: Transaction[];
   budgets: MonthlyBudget[];
+  openingBalance: OpeningBalanceSetting | null;
 }> {
   const db = await getDb();
-  const [categories, transactions, budgets] = await Promise.all([
+  const [categories, transactions, budgets, openingBalance] = await Promise.all([
     db.getAll("categories"),
     db.getAll("transactions"),
     db.getAll("budgets"),
+    getOpeningBalance(),
   ]);
   categories.sort((a, b) => a.sortOrder - b.sortOrder);
   transactions.sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
   );
-  return { categories, transactions, budgets };
+  return { categories, transactions, budgets, openingBalance };
+}
+
+export async function getOpeningBalance(): Promise<OpeningBalanceSetting | null> {
+  const db = await getDb();
+  const row = await db.get("meta", OPENING_BALANCE_META_KEY);
+  if (!row?.value) return null;
+  try {
+    const parsed = JSON.parse(row.value) as OpeningBalanceSetting;
+    if (typeof parsed.amount !== "number" || !Number.isFinite(parsed.amount)) {
+      return null;
+    }
+    if (typeof parsed.updatedAt !== "string" || !parsed.updatedAt) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export async function setOpeningBalance(
+  setting: OpeningBalanceSetting | null,
+): Promise<void> {
+  const db = await getDb();
+  if (setting === null) {
+    await db.delete("meta", OPENING_BALANCE_META_KEY);
+    return;
+  }
+  await db.put("meta", {
+    key: OPENING_BALANCE_META_KEY,
+    value: JSON.stringify(setting),
+  });
 }
 
 export async function putCategory(category: Category): Promise<void> {

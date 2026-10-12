@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReportPeriod } from "./lib/analytics";
 import { parseDeepLink, type DeepLinkPayload } from "./lib/deeplink";
 import { BackupSection } from "./pages/BackupSection";
+import { OpeningBalanceSection } from "./pages/OpeningBalanceSection";
 import { AutoRecordHelpPage } from "./pages/AutoRecordHelpPage";
 import { BudgetPage } from "./pages/BudgetPage";
 import { CategoriesPage } from "./pages/CategoriesPage";
@@ -71,6 +72,10 @@ export default function App() {
               <>
                 <CategoriesPage />
                 <AutoRecordHelpPage />
+                <section className="section pad-horizontal" data-testid="settings-section">
+                  <h2>設定</h2>
+                  <OpeningBalanceSection />
+                </section>
                 <BackupSection />
               </>
             )}

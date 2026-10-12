@@ -6,6 +6,7 @@ import {
   recordsFromTransactions,
   isValidTransactionId,
 } from "./merge";
+import type { OpeningBalanceSetting } from "../openingBalance";
 import type { SyncPayload } from "./types";
 import { PWA_SYNC_PREFIX } from "./types";
 import type { Category, Transaction } from "../../types";
@@ -28,8 +29,9 @@ export function buildSyncPayload(
   transactions: Transaction[],
   categories: Category[],
   unsynced: Transaction[],
+  openingBalance?: OpeningBalanceSetting | null,
 ): SyncPayload {
-  return {
+  const payload: SyncPayload = {
     v: 1,
     exportedAt: new Date().toISOString(),
     transactions: recordsFromTransactions(
@@ -38,6 +40,13 @@ export function buildSyncPayload(
       unsynced.map((t) => t.id),
     ),
   };
+  if (openingBalance) {
+    payload.openingBalance = {
+      amount: openingBalance.amount,
+      updatedAt: openingBalance.updatedAt,
+    };
+  }
+  return payload;
 }
 
 export async function encodeSyncPayloadAsync(payload: SyncPayload): Promise<string> {

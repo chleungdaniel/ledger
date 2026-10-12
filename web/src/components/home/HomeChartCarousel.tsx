@@ -17,6 +17,8 @@ export interface CarouselBalanceData {
 interface HomeChartCarouselProps {
   month: CarouselBalanceData;
   all: CarouselBalanceData;
+  /** When set, shown under 所有結餘 as 「含期初結餘 HK$x」 */
+  openingBalanceNote: number | null;
   periodScope: HomeScope;
   hideAmounts: boolean;
   onToggleHide: () => void;
@@ -53,6 +55,7 @@ function DonutSlide({
   data,
   balanceLabel,
   balance,
+  openingBalanceNote,
   hideAmounts,
   onToggleHide,
   slideId,
@@ -61,6 +64,7 @@ function DonutSlide({
   data: CarouselBalanceData;
   balanceLabel: string;
   balance: number;
+  openingBalanceNote?: number | null;
   hideAmounts: boolean;
   onToggleHide: () => void;
   slideId: "month" | "all";
@@ -114,6 +118,16 @@ function DonutSlide({
           >
             {displayBalance}
           </p>
+          {slideId === "all" && openingBalanceNote != null && openingBalanceNote > 0 && (
+            <p
+              className="hk-chart__opening-note muted"
+              data-testid="home-opening-balance-note"
+            >
+              {hideAmounts
+                ? "含期初結餘 ••••"
+                : `含期初結餘 ${formatCurrency(openingBalanceNote)}`}
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -123,6 +137,7 @@ function DonutSlide({
 export function HomeChartCarousel({
   month,
   all,
+  openingBalanceNote,
   periodScope,
   hideAmounts,
   onToggleHide,
@@ -226,6 +241,7 @@ export function HomeChartCarousel({
           data={all}
           balanceLabel="所有結餘"
           balance={all.balance}
+          openingBalanceNote={openingBalanceNote}
           hideAmounts={hideAmounts}
           onToggleHide={onToggleHide}
         />
