@@ -55,7 +55,7 @@ export function suggestCategoryId(
   const pool = categories.filter((c) => c.type === type);
   const haystack = `${merchant} ${note}`;
 
-  if (type === "income" && /調整|退款/.test(haystack)) {
+  if (type === "income" && /調整|退款|回贈|回饋|cashback|Cashback/i.test(haystack)) {
     const rebate = pool.find((c) => c.name === "回饋");
     if (rebate) return rebate.id;
   }

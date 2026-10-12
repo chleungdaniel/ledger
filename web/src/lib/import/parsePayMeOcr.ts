@@ -17,6 +17,17 @@ const INLINE_EXPENSE =
 const JUNK_LINE =
   /港幣\s*[\d,.]|你已經儲了|不用再怕|自動增值|Trip\.com|主頁|向商店付款|我的帳戶|^朋友$|^通知$|PayMe/i;
 
+export interface PayMeSignedRow {
+  rowId: string;
+  sign: "expense" | "income";
+  amount: number;
+  date: Date;
+  dateKey: string;
+  merchant: string;
+  subtitle: string;
+  lineIndex: number;
+}
+
 function toAsciiDigits(s: string): string {
   return s
     .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xff10 + 0x30))
@@ -29,6 +40,14 @@ function parseHkdAmount(raw: string): number | null {
   const n = Number(cleaned);
   if (!Number.isFinite(n) || n <= 0) return null;
   return n;
+}
+
+function payMeDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function amountsMatch(a: number, b: number): boolean {
+  return Math.abs(a - b) < 0.001;
 }
 
 export function isLikelyPayMeOcrText(text: string): boolean {
@@ -79,13 +98,14 @@ function isEmojiOnly(s: string): boolean {
   return !/[A-Za-z0-9\u4e00-\u9fff]/.test(t);
 }
 
-function isTopUpMeta(line: string): boolean {
-  return line.trim() === "增值" || /恒生銀行/.test(line);
+function isBankMeta(line: string): boolean {
+  return /恒生銀行/.test(line);
 }
 
 function collectRowsBeforeAmount(
   lines: string[],
   amountIndex: number,
+  mode: "expense" | "income",
 ): { title: string; subtitle: string } {
   const collected: string[] = [];
   for (let j = amountIndex - 1; j >= 0; j--) {
@@ -94,7 +114,7 @@ function collectRowsBeforeAmount(
     if (isDateHeader(prev)) break;
     if (isJunk(prev)) continue;
     if (EXPENSE_AMOUNT_LINE.test(prev) || isIncomeAmountLine(prev)) break;
-    if (isTopUpMeta(prev)) continue;
+    if (mode === "expense" && (prev === "增值" || isBankMeta(prev))) continue;
     collected.unshift(prev);
     if (collected.length >= 2) break;
   }
@@ -103,17 +123,19 @@ function collectRowsBeforeAmount(
   return { title, subtitle };
 }
 
-function buildNote(merchant: string, subtitle: string): string {
+function buildExpenseNote(merchant: string, subtitle: string): string {
   if (!subtitle || subtitle === merchant) return merchant;
   if (isSubtitlePayment(subtitle) || isEmojiOnly(subtitle)) return merchant;
   return subtitle;
 }
 
-export function parsePayMeOcrText(text: string, refDate = new Date()): ImportCandidate[] {
-  const normalized = normalizeOcrText(text);
-  const lines = normalized.split(/\r?\n/).map((l) => l.trim());
+function buildIncomeNote(merchant: string, subtitle: string): string {
+  if (!subtitle || subtitle === merchant) return merchant;
+  return subtitle;
+}
 
-  const candidates: ImportCandidate[] = [];
+export function scanSignedRows(lines: string[], refDate: Date): PayMeSignedRow[] {
+  const rows: PayMeSignedRow[] = [];
   let currentDate = new Date(refDate);
   currentDate.setHours(12, 0, 0, 0);
 
@@ -128,44 +150,121 @@ export function parsePayMeOcrText(text: string, refDate = new Date()): ImportCan
       continue;
     }
 
-    if (isIncomeAmountLine(line)) continue;
-
+    let sign: "expense" | "income" | null = null;
     let amount: number | null = null;
     let merchant = "";
     let subtitle = "";
 
     const expenseMatch = line.match(EXPENSE_AMOUNT_LINE);
     if (expenseMatch) {
+      sign = "expense";
       amount = parseHkdAmount(expenseMatch[1]);
-      const rows = collectRowsBeforeAmount(lines, i);
-      merchant = rows.title;
-      subtitle = rows.subtitle;
+      const meta = collectRowsBeforeAmount(lines, i, "expense");
+      merchant = meta.title;
+      subtitle = meta.subtitle;
+    } else if (isIncomeAmountLine(line)) {
+      sign = "income";
+      const incMatch = line.match(INCOME_AMOUNT_LINE);
+      amount = incMatch ? parseHkdAmount(incMatch[1]) : null;
+      const meta = collectRowsBeforeAmount(lines, i, "income");
+      merchant = meta.title;
+      subtitle = meta.subtitle;
     } else {
       const inline = line.match(INLINE_EXPENSE);
       if (!inline) continue;
+      sign = "expense";
       merchant = inline[1].trim();
       amount = parseHkdAmount(inline[2]);
       if (i > 0) {
         const prev = lines[i - 1];
-        if (prev && !isDateHeader(prev) && !isJunk(prev) && !isTopUpMeta(prev)) {
+        if (prev && !isDateHeader(prev) && !isJunk(prev) && prev !== "增值" && !isBankMeta(prev)) {
           subtitle = prev;
         }
       }
     }
 
-    if (amount == null || !merchant) continue;
-    if (isTopUpMeta(merchant)) continue;
+    if (!sign || amount == null || !merchant) continue;
 
-    const note = buildNote(merchant, subtitle);
+    rows.push({
+      rowId: newId(),
+      sign,
+      amount,
+      date: new Date(currentDate),
+      dateKey: payMeDateKey(currentDate),
+      merchant,
+      subtitle,
+      lineIndex: i,
+    });
+  }
+
+  return rows;
+}
+
+/** Pair each '+' with at most one '-' of the same amount (same date preferred). */
+export function payMeIncomeRowsToSkip(
+  rows: PayMeSignedRow[],
+): Set<string> {
+  const skipIncome = new Set<string>();
+  const expenses = rows.filter((r) => r.sign === "expense");
+  const incomes = rows.filter((r) => r.sign === "income");
+  const usedExpense = new Set<string>();
+
+  for (const inc of incomes) {
+    let match = expenses.find(
+      (e) =>
+        !usedExpense.has(e.rowId) &&
+        amountsMatch(e.amount, inc.amount) &&
+        e.dateKey === inc.dateKey,
+    );
+    if (!match) {
+      match = expenses.find(
+        (e) => !usedExpense.has(e.rowId) && amountsMatch(e.amount, inc.amount),
+      );
+    }
+    if (match) {
+      usedExpense.add(match.rowId);
+      skipIncome.add(inc.rowId);
+    }
+  }
+
+  return skipIncome;
+}
+
+export function parsePayMeOcrText(text: string, refDate = new Date()): ImportCandidate[] {
+  const normalized = normalizeOcrText(text);
+  const lines = normalized.split(/\r?\n/).map((l) => l.trim());
+  const scanned = scanSignedRows(lines, refDate);
+  const skipIncome = payMeIncomeRowsToSkip(scanned);
+
+  const candidates: ImportCandidate[] = [];
+
+  for (const row of scanned) {
+    if (row.sign === "expense") {
+      candidates.push({
+        id: newId(),
+        merchant: row.merchant,
+        amount: row.amount,
+        currency: "HKD",
+        type: "expense",
+        date: row.date.toISOString(),
+        note: buildExpenseNote(row.merchant, row.subtitle),
+        categoryId: null,
+        selected: true,
+        isDuplicate: false,
+      });
+      continue;
+    }
+
+    if (skipIncome.has(row.rowId)) continue;
 
     candidates.push({
       id: newId(),
-      merchant,
-      amount,
+      merchant: row.merchant,
+      amount: row.amount,
       currency: "HKD",
-      type: "expense",
-      date: currentDate.toISOString(),
-      note,
+      type: "income",
+      date: row.date.toISOString(),
+      note: buildIncomeNote(row.merchant, row.subtitle),
       categoryId: null,
       selected: true,
       isDuplicate: false,
