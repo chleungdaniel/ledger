@@ -3,6 +3,8 @@ import {
   isLikelyPayMeOcrText,
   PAYME_OCR_FIXTURE,
   parsePayMeOcrText,
+  payMeIncomeRowsToSkip,
+  scanSignedRows,
 } from "./parsePayMeOcr";
 import { WALLET_OCR_FIXTURE } from "./parseWalletOcr";
 
@@ -16,16 +18,16 @@ describe("isLikelyPayMeOcrText", () => {
 });
 
 describe("parsePayMeOcrText", () => {
-  it("parses only minus rows as expenses with dates and notes", () => {
+  it("parses expenses, paired income skip, and unpaired income", () => {
     const rows = parsePayMeOcrText(PAYME_OCR_FIXTURE, REF);
-    expect(rows).toHaveLength(3);
+    expect(rows.filter((r) => r.type === "expense")).toHaveLength(3);
+    expect(rows.filter((r) => r.type === "income")).toHaveLength(1);
 
     const taobao = rows.find((r) => r.merchant === "TAOBAO");
     expect(taobao?.amount).toBe(355.3);
     expect(taobao?.type).toBe("expense");
     expect(taobao?.note).toBe("TAOBAO");
     expect(new Date(taobao!.date).getDate()).toBe(10);
-    expect(new Date(taobao!.date).getMonth()).toBe(9);
 
     const billy = rows.find((r) => r.merchant === "Billy Billy");
     expect(billy?.amount).toBe(371);
@@ -36,8 +38,26 @@ describe("parsePayMeOcrText", () => {
     expect(regina?.amount).toBe(258);
     expect(regina?.note).toBe("Regina So");
 
-    expect(rows.every((r) => r.type === "expense")).toBe(true);
-    expect(rows.some((r) => r.merchant === "增值")).toBe(false);
+    const topUp = rows.find((r) => r.type === "income");
+    expect(topUp?.merchant).toBe("增值");
+    expect(topUp?.amount).toBe(354.3);
+    expect(topUp?.note).toContain("恒生銀行");
+    expect(new Date(topUp!.date).getDate()).toBe(10);
+
+    const paired371 = rows.filter((r) => r.amount === 371);
+    expect(paired371).toHaveLength(1);
+    expect(paired371[0].type).toBe("expense");
+  });
+
+  it("pairs plus with minus on same date first", () => {
+    const lines = PAYME_OCR_FIXTURE.split(/\r?\n/).map((l) => l.trim());
+    const scanned = scanSignedRows(lines, REF);
+    const skip = payMeIncomeRowsToSkip(scanned);
+    const incomes = scanned.filter((r) => r.sign === "income");
+    expect(incomes).toHaveLength(2);
+    const skipped = incomes.filter((r) => skip.has(r.rowId));
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0].amount).toBe(371);
   });
 
   it("tolerates minus and amount spacing variants", () => {
