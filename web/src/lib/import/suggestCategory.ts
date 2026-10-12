@@ -11,7 +11,8 @@ const RULES: { pattern: RegExp; categoryName: string }[] = [
       /Five Guys|燒肉|minimelts|Vincenzo|Capuano|pizza|冰淇淋|餐|飯|咖啡|food|restaurant|麵|茶餐/i,
     categoryName: "飲食",
   },
-  { pattern: /PARKnSHOP|百佳|惠康|Fusion|超市|購物/i, categoryName: "購物" },
+  { pattern: /PARKnSHOP|百佳|惠康|Fusion|超市|購物|TAOBAO|淘宝/i, categoryName: "購物" },
+  { pattern: /dinner|lunch|brunch|早餐|午餐|晚餐/i, categoryName: "飲食" },
 ];
 
 function learnFromHistory(transactions: Transaction[], categories: Category[]): Map<string, string> {
