@@ -7,7 +7,12 @@ import {
   formatCarouselCurrency,
 } from "../../lib/carouselBalanceFormat";
 import { formatCurrency } from "../../lib/format";
-import { CarouselBalanceAmount } from "./CarouselBalanceAmount";
+import {
+  CAROUSEL_CHART_HEIGHT,
+  CAROUSEL_PIE_INNER_RADIUS,
+  CAROUSEL_PIE_OUTER_RADIUS,
+} from "../../lib/carouselDonutGeometry";
+import { CarouselDonutCenter } from "./CarouselDonutCenter";
 import type { HomeScope } from "../../lib/homeScope";
 
 export type CarouselSummaryScope = "month" | "all";
@@ -89,14 +94,14 @@ function DonutSlide({
       data-slide={slideId}
     >
       <div className="hk-chart__donut-wrap">
-        <ResponsiveContainer width="100%" height={220}>
+        <ResponsiveContainer width="100%" height={CAROUSEL_CHART_HEIGHT}>
           <PieChart>
             <Pie
               data={pieData}
               dataKey="value"
               nameKey="name"
-              innerRadius={62}
-              outerRadius={88}
+              innerRadius={CAROUSEL_PIE_INNER_RADIUS}
+              outerRadius={CAROUSEL_PIE_OUTER_RADIUS}
               stroke="#111"
               strokeWidth={3}
               isAnimationActive={false}
@@ -107,31 +112,29 @@ function DonutSlide({
             </Pie>
           </PieChart>
         </ResponsiveContainer>
-        <div className="hk-chart__center">
-          <span className="hk-chart__coin" aria-hidden>🪙</span>
-          <button
-            type="button"
-            className="hk-chart__balance-label"
-            data-testid={slideId === "month" ? "home-eye-toggle" : "home-eye-toggle-all"}
-            onClick={onToggleHide}
-          >
-            {balanceLabel} 👁
-          </button>
-          <CarouselBalanceAmount
-            text={displayBalance}
-            testId={slideId === "month" ? "home-balance-value" : "home-balance-value-all"}
-          />
-          {slideId === "all" && openingBalanceNote != null && openingBalanceNote > 0 && (
-            <p
-              className="hk-chart__opening-note muted"
-              data-testid="home-opening-balance-note"
-            >
-              {hideAmounts
-                ? "含期初結餘 ••••"
-                : `含期初結餘 ${formatCarouselCurrency(openingBalanceNote)}`}
-            </p>
-          )}
-        </div>
+        <CarouselDonutCenter
+          balanceLabel={balanceLabel}
+          balanceText={displayBalance}
+          openingNoteLine1={
+            slideId === "all" && openingBalanceNote != null && openingBalanceNote > 0
+              ? "含期初結餘"
+              : null
+          }
+          openingNoteLine2={
+            slideId === "all" && openingBalanceNote != null && openingBalanceNote > 0
+              ? formatCarouselCurrency(openingBalanceNote)
+              : null
+          }
+          hideAmounts={hideAmounts}
+          onToggleHide={onToggleHide}
+          eyeTestId={slideId === "month" ? "home-eye-toggle" : "home-eye-toggle-all"}
+          balanceTestId={slideId === "month" ? "home-balance-value" : "home-balance-value-all"}
+          openingNoteTestId={
+            slideId === "all" && openingBalanceNote != null && openingBalanceNote > 0
+              ? "home-opening-balance-note"
+              : undefined
+          }
+        />
       </div>
     </div>
   );

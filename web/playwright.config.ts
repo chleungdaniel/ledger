@@ -11,10 +11,22 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "iphone",
+      name: "iphone-chromium",
       use: {
         ...devices["iPhone 14"],
         browserName: "chromium",
+      },
+    },
+    {
+      name: "webkit-iphone-13",
+      use: {
+        ...devices["iPhone 13"],
+      },
+    },
+    {
+      name: "webkit-iphone-se",
+      use: {
+        ...devices["iPhone SE"],
       },
     },
   ],
