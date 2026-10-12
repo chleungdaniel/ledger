@@ -1642,7 +1642,21 @@ body {
   transform: translate(-50%, -50%);
   text-align: center;
   pointer-events: none;
-  width: 120px;
+  width: calc(100% * 124 / 220 * 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hk-chart__balance-fit {
+  overflow: hidden;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.hk-chart__balance-fit .hk-chart__balance-value {
+  white-space: nowrap;
+  line-height: 1.1;
 }
 
 .hk-chart__opening-note {
@@ -1688,6 +1702,7 @@ body {
   margin: 0;
   font-size: 22px;
   font-weight: 800;
+  display: inline-block;
 }
 
 .hk-chart__dots {

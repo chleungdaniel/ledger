@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 import { colorForCategory } from "../../lib/chartColors";
 import type { Category } from "../../types";
+import {
+  formatCarouselBalance,
+  formatCarouselCurrency,
+} from "../../lib/carouselBalanceFormat";
 import { formatCurrency } from "../../lib/format";
+import { CarouselBalanceAmount } from "./CarouselBalanceAmount";
 import type { HomeScope } from "../../lib/homeScope";
 
 export type CarouselSummaryScope = "month" | "all";
@@ -74,7 +79,7 @@ function DonutSlide({
     () => pieDataFromBreakdown(data.expenseByCategory),
     [data.expenseByCategory],
   );
-  const displayBalance = hideAmounts ? "••••" : formatCurrency(balance, true);
+  const displayBalance = hideAmounts ? "••••" : formatCarouselBalance(balance, true);
 
   return (
     <div
@@ -112,12 +117,10 @@ function DonutSlide({
           >
             {balanceLabel} 👁
           </button>
-          <p
-            className="hk-chart__balance-value tabular"
-            data-testid={slideId === "month" ? "home-balance-value" : "home-balance-value-all"}
-          >
-            {displayBalance}
-          </p>
+          <CarouselBalanceAmount
+            text={displayBalance}
+            testId={slideId === "month" ? "home-balance-value" : "home-balance-value-all"}
+          />
           {slideId === "all" && openingBalanceNote != null && openingBalanceNote > 0 && (
             <p
               className="hk-chart__opening-note muted"
@@ -125,7 +128,7 @@ function DonutSlide({
             >
               {hideAmounts
                 ? "含期初結餘 ••••"
-                : `含期初結餘 ${formatCurrency(openingBalanceNote)}`}
+                : `含期初結餘 ${formatCarouselCurrency(openingBalanceNote)}`}
             </p>
           )}
         </div>
