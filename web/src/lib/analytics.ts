@@ -78,6 +78,14 @@ export function allTimeSummary(transactions: Transaction[]): MonthSummary {
   };
 }
 
+/** All-time 結餘 including 期初結餘 (does not affect income/expense totals). */
+export function allTimeBalanceWithOpening(
+  transactions: Transaction[],
+  openingBalance: number,
+): number {
+  return allTimeSummary(transactions).balance + openingBalance;
+}
+
 export function monthSummary(
   transactions: Transaction[],
   year: number,

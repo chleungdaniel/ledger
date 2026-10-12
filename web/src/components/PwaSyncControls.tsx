@@ -32,6 +32,7 @@ export function PwaSyncControls({
   const {
     categories,
     transactions,
+    openingBalance,
     markTransactionsPwaExported,
     mergePwaSync,
     undoPwaSyncMerge,
@@ -91,6 +92,7 @@ export function PwaSyncControls({
           categories,
           toExport,
           markTransactionsPwaExported,
+          openingBalance,
         );
         setToast("export");
         setToastDetail("");
@@ -106,6 +108,7 @@ export function PwaSyncControls({
       categories,
       markTransactionsPwaExported,
       onDeepLinkToastDismiss,
+      openingBalance,
       transactions,
     ],
   );
@@ -114,7 +117,12 @@ export function PwaSyncControls({
     if (transactions.length === 0) return;
     setBusy(true);
     try {
-      const payload = buildSyncPayload(transactions, categories, transactions);
+      const payload = buildSyncPayload(
+        transactions,
+        categories,
+        transactions,
+        openingBalance,
+      );
       const code = await encodeSyncPayloadAsync(payload);
       await navigator.clipboard.writeText(code);
       setToast("export");

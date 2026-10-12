@@ -17,7 +17,9 @@ import {
   putBudget,
   putCategory,
   putTransaction,
+  setOpeningBalance,
 } from "../db/database";
+import type { OpeningBalanceSetting } from "../lib/openingBalance";
 import { mergeSyncPayload, type SyncPayload } from "../lib/pwaSync";
 import { newId } from "../lib/format";
 import type {
@@ -33,7 +35,9 @@ interface LedgerState {
   categories: Category[];
   transactions: Transaction[];
   budgets: MonthlyBudget[];
+  openingBalance: OpeningBalanceSetting | null;
   refresh: () => Promise<void>;
+  setOpeningBalanceAmount: (amount: number | null) => Promise<void>;
   upsertTransaction: (
     input: Omit<Transaction, "id" | "createdAt" | "updatedAt"> & { id?: string },
   ) => Promise<void>;
@@ -66,14 +70,32 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<MonthlyBudget[]>([]);
+  const [openingBalance, setOpeningBalanceState] =
+    useState<OpeningBalanceSetting | null>(null);
 
   const refresh = useCallback(async () => {
     const data = await loadAllData();
     setCategories(data.categories);
     setTransactions(data.transactions);
     setBudgets(data.budgets);
+    setOpeningBalanceState(data.openingBalance);
     setLoading(false);
   }, []);
+
+  const setOpeningBalanceAmount = useCallback(
+    async (amount: number | null) => {
+      if (amount === null) {
+        await setOpeningBalance(null);
+      } else {
+        await setOpeningBalance({
+          amount,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      await refresh();
+    },
+    [refresh],
+  );
 
   useEffect(() => {
     void refresh();
@@ -218,7 +240,12 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 
   const mergePwaSync = useCallback(
     async (payload: SyncPayload) => {
-      const result = mergeSyncPayload(categories, transactions, payload);
+      const result = mergeSyncPayload(
+        categories,
+        transactions,
+        payload,
+        openingBalance,
+      );
       const oldCatIds = new Set(categories.map((c) => c.id));
       const oldTxIds = new Set(transactions.map((t) => t.id));
       const addedCategoryIds: string[] = [];
@@ -235,6 +262,13 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
           addedTransactionIds.push(t.id);
         }
       }
+      const mergedOb = result.openingBalance;
+      const obChanged =
+        mergedOb?.amount !== openingBalance?.amount ||
+        mergedOb?.updatedAt !== openingBalance?.updatedAt;
+      if (obChanged) {
+        await setOpeningBalance(mergedOb);
+      }
       await refresh();
       return {
         added: result.added,
@@ -243,7 +277,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
         addedCategoryIds,
       };
     },
-    [categories, refresh, transactions],
+    [categories, openingBalance, refresh, transactions],
   );
 
   const undoPwaSyncMerge = useCallback(
@@ -268,7 +302,9 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       categories,
       transactions,
       budgets,
+      openingBalance,
       refresh,
+      setOpeningBalanceAmount,
       upsertTransaction,
       removeTransaction,
       upsertCategory,
@@ -287,7 +323,9 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       categories,
       transactions,
       budgets,
+      openingBalance,
       refresh,
+      setOpeningBalanceAmount,
       upsertTransaction,
       removeTransaction,
       upsertCategory,

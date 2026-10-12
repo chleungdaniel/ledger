@@ -3,11 +3,13 @@ import { createPortal } from "react-dom";
 import type { DeepLinkPayload } from "../lib/deeplink";
 import { suggestCategoryId } from "../lib/import/suggestCategory";
 import {
+  allTimeBalanceWithOpening,
   allTimeSummary,
   expenseByCategory,
   expenseByCategoryAllTime,
   monthSummary,
 } from "../lib/analytics";
+import { openingBalanceAmount } from "../lib/openingBalance";
 import { formatDeepLinkDebug, localNowIso } from "../lib/datetime";
 import { groupTransactionsByDay } from "../lib/groupByDay";
 import {
@@ -43,8 +45,15 @@ export function HomePage({
   deepLink,
   onDeepLinkConsumed,
 }: HomePageProps) {
-  const { loading, categories, transactions, budgets, removeTransaction, upsertTransaction } =
-    useLedger();
+  const {
+    loading,
+    categories,
+    transactions,
+    budgets,
+    openingBalance,
+    removeTransaction,
+    upsertTransaction,
+  } = useLedger();
   const now = new Date();
   const current = yearMonthFromDate(now);
   const [scope, setScope] = useState<HomeScope>("month");
@@ -110,6 +119,11 @@ export function HomePage({
   const allSummaryData = useMemo(
     () => allTimeSummary(transactions),
     [transactions],
+  );
+  const openingBalanceValue = openingBalanceAmount(openingBalance);
+  const allTimeBalance = useMemo(
+    () => allTimeBalanceWithOpening(transactions, openingBalanceValue),
+    [transactions, openingBalanceValue],
   );
   const summaryForDisplay =
     carouselSummaryScope === "month" ? monthSummaryData : allSummaryData;
@@ -260,8 +274,11 @@ export function HomePage({
               expenseByCategory: allBreakdown,
               totalExpense: allSummaryData.totalExpense,
               totalIncome: allSummaryData.totalIncome,
-              balance: allSummaryData.balance,
+              balance: allTimeBalance,
             }}
+            openingBalanceNote={
+              openingBalanceValue > 0 ? openingBalanceValue : null
+            }
             periodScope={scope}
             hideAmounts={hideAmounts}
             onToggleHide={() => setHideAmounts((v) => !v)}

@@ -76,4 +76,38 @@ describe("pwaSync merge", () => {
     expect(result.added).toBe(0);
     expect(result.skipped).toBe(1);
   });
+
+  it("imports payloads without openingBalance (backward compatible)", () => {
+    const payload = payloadFromTx(sampleTx);
+    const result = mergeSyncPayload([], [], payload, null);
+    expect(result.openingBalance).toBeNull();
+    expect(result.added).toBe(1);
+  });
+
+  it("merges openingBalance by updatedAt", () => {
+    const payload: SyncPayload = {
+      v: 1,
+      exportedAt: "2026-03-02T00:00:00.000Z",
+      transactions: [],
+      openingBalance: {
+        amount: 500,
+        updatedAt: "2026-03-10T00:00:00.000Z",
+      },
+    };
+    const local = { amount: 100, updatedAt: "2026-03-01T00:00:00.000Z" };
+    const result = mergeSyncPayload([], [], payload, local);
+    expect(result.openingBalance?.amount).toBe(500);
+  });
+
+  it("round-trips openingBalance in sync code", () => {
+    const payload: SyncPayload = {
+      v: 1,
+      exportedAt: "2026-03-02T00:00:00.000Z",
+      transactions: [],
+      openingBalance: { amount: 95232.4, updatedAt: "2026-03-01T00:00:00.000Z" },
+    };
+    const code = encodeSyncCode(payload, testGzip);
+    const decoded = decodeSyncCode(code, testGunzip);
+    expect(decoded.openingBalance?.amount).toBe(95232.4);
+  });
 });

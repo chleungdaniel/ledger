@@ -1,3 +1,7 @@
+import {
+  mergeOpeningBalanceByUpdatedAt,
+  type OpeningBalanceSetting,
+} from "../openingBalance";
 import { newId } from "../format";
 import type { Category, Transaction } from "../../types";
 import type { SyncPayload, SyncTransactionRecord } from "./types";
@@ -29,6 +33,7 @@ function defaultIconForType(type: Category["type"]): string {
 export interface MergeSyncResult {
   categories: Category[];
   transactions: Transaction[];
+  openingBalance: OpeningBalanceSetting | null;
   added: number;
   skipped: number;
 }
@@ -37,6 +42,7 @@ export function mergeSyncPayload(
   categories: Category[],
   transactions: Transaction[],
   payload: SyncPayload,
+  localOpeningBalance: OpeningBalanceSetting | null = null,
 ): MergeSyncResult {
   const nextCategories = [...categories];
   const nextTransactions = [...transactions];
@@ -97,7 +103,18 @@ export function mergeSyncPayload(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
   );
 
-  return { categories: nextCategories, transactions: nextTransactions, added, skipped };
+  const openingBalance = mergeOpeningBalanceByUpdatedAt(
+    localOpeningBalance,
+    payload.openingBalance,
+  );
+
+  return {
+    categories: nextCategories,
+    transactions: nextTransactions,
+    openingBalance,
+    added,
+    skipped,
+  };
 }
 
 export function recordsFromTransactions(
