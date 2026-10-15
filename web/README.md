@@ -50,6 +50,10 @@ npm run preview
 npm run test:e2e
 ```
 
+## Wallet / 捷徑自動記帳
+
+見 [`SHORTCUTS.md`](./SHORTCUTS.md)：確認後入帳的 URL 格式、Transaction 自動化步驟與 Shortcuts AI 提示詞。
+
 ## 功能摘要
 
 - 首頁：快速支出／收入、最近交易、本月支出／收入／結餘、總預算進度

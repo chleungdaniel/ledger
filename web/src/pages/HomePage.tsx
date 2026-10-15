@@ -28,6 +28,7 @@ import { PwaSyncControls } from "../components/PwaSyncControls";
 import { isInBrowserTab } from "../lib/runtimeContext";
 import { useLedger } from "../store/LedgerContext";
 import type { Transaction } from "../types";
+import { DeepLinkConfirmSheet } from "../components/DeepLinkConfirmSheet";
 import { TransactionFormPage, type TransactionFormPreset } from "./TransactionFormPage";
 
 type AppTab = "budget" | "reports" | "categories";
@@ -72,38 +73,44 @@ export function HomePage({
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [formPreset, setFormPreset] = useState<TransactionFormPreset | undefined>();
   const [deepLinkToast, setDeepLinkToast] = useState(false);
+  const [pendingDeepLink, setPendingDeepLink] = useState<DeepLinkPayload | null>(null);
 
   useEffect(() => {
     if (!deepLink?.openAdd || loading) return;
-    setFormType(deepLink.type);
-    const fallbackCat = categories.find(
-      (c) =>
-        c.type === deepLink.type &&
-        c.name === (deepLink.type === "income" ? "其他收入" : "其他"),
-    );
-    const suggested =
-      suggestCategoryId(
-        deepLink.merchant,
-        deepLink.merchant,
-        deepLink.type,
-        categories,
-        transactions,
-      ) ?? fallbackCat?.id ?? null;
 
-    setFormPreset({
-      type: deepLink.type,
-      amount: deepLink.amount,
-      note: deepLink.merchant,
-      date: deepLink.date ?? localNowIso(),
-      categoryId: suggested,
-      autoSave: deepLink.auto && deepLink.amount != null && deepLink.amount > 0,
-      fromDeepLink: true,
-      amountMissingBanner: deepLink.amountMissing,
-      debugRawParams: formatDeepLinkDebug(
-        window.location.href,
-        window.location.search,
-      ),
-    });
+    if (deepLink.silentAutoSave) {
+      setFormType(deepLink.type);
+      const fallbackCat = categories.find(
+        (c) =>
+          c.type === deepLink.type &&
+          c.name === (deepLink.type === "income" ? "其他收入" : "其他"),
+      );
+      const suggested =
+        suggestCategoryId(
+          deepLink.merchant,
+          deepLink.merchant,
+          deepLink.type,
+          categories,
+          transactions,
+        ) ?? fallbackCat?.id ?? null;
+
+      setFormPreset({
+        type: deepLink.type,
+        amount: deepLink.amount,
+        note: deepLink.merchant,
+        date: deepLink.date ?? localNowIso(),
+        categoryId: suggested,
+        autoSave: deepLink.amount != null && deepLink.amount > 0,
+        fromDeepLink: true,
+        amountMissingBanner: deepLink.amountMissing,
+        debugRawParams: formatDeepLinkDebug(
+          window.location.href,
+          window.location.search,
+        ),
+      });
+    } else {
+      setPendingDeepLink(deepLink);
+    }
     onDeepLinkConsumed();
   }, [deepLink, loading, onDeepLinkConsumed, categories, transactions]);
 
@@ -170,6 +177,20 @@ export function HomePage({
       note: undoTx.note,
     });
     setUndoTx(null);
+  }
+
+  if (pendingDeepLink) {
+    return (
+      <DeepLinkConfirmSheet
+        deepLink={pendingDeepLink}
+        onClose={() => setPendingDeepLink(null)}
+        onSaved={() => {
+          if (isInBrowserTab()) {
+            setDeepLinkToast(true);
+          }
+        }}
+      />
+    );
   }
 
   if (formType || editing) {

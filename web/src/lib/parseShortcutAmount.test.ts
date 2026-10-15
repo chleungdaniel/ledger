@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { decodeParamValue, parseShortcutAmount } from "./parseShortcutAmount";
+import {
+  decodeParamValue,
+  normalizeShortcutFields,
+  parseShortcutAmount,
+} from "./parseShortcutAmount";
 import { parseDeepLink } from "./deeplink";
 
 describe("parseShortcutAmount", () => {
@@ -58,21 +62,54 @@ describe("parseDeepLink", () => {
     expect(p?.type).toBe("expense");
   });
 
-  it("reads auto flag and amount aliases", () => {
+  it("reads amount aliases; auto=1 alone does not silent-save", () => {
     const p = parseDeepLink("?add=1&amount=12.5&merchant=Uber&auto=1");
-    expect(p?.auto).toBe(true);
+    expect(p?.silentAutoSave).toBe(false);
     const p2 = parseDeepLink("?add=1&a=9.5&m=Test");
     expect(p2?.amount).toBe(9.5);
     expect(p2?.merchant).toBe("Test");
   });
 
-  it("flags missing amount with auto=1", () => {
+  it("silent save only with confirm=0", () => {
+    const p = parseDeepLink(
+      "?add=1&amount=3&merchant=Test&type=expense&auto=1&confirm=0",
+    );
+    expect(p?.silentAutoSave).toBe(true);
+  });
+
+  it("flags missing amount after normalization", () => {
     const p = parseDeepLink("?add=1&merchant=Octopus&auto=1");
     expect(p?.amount).toBeNull();
     expect(p?.amountMissing).toBe(true);
     expect(p?.merchant).toBe("Octopus");
   });
 
+  it("parses Octopus combined merchant string", () => {
+    const p = parseDeepLink(
+      "?add=1&merchant=%E9%90%B5%E8%B7%AF%EF%BC%9AHK%247.90&type=expense",
+    );
+    expect(p?.amount).toBe(7.9);
+    expect(p?.merchant).toBe("鐵路");
+  });
+
+  it("parses combined string in amount param", () => {
+    const p = parseDeepLink(
+      "?add=1&amount=%E9%90%B5%E8%B7%AF%EF%BC%9AHK%247.90&type=expense",
+    );
+    expect(p?.amount).toBe(7.9);
+    expect(p?.merchant).toBe("鐵路");
+  });
+});
+
+describe("normalizeShortcutFields", () => {
+  it("splits colon-separated Octopus text", () => {
+    const n = normalizeShortcutFields(null, "鐵路：HK$7.90");
+    expect(n.amount).toBe(7.9);
+    expect(n.merchant).toBe("鐵路");
+  });
+});
+
+describe("parseDeepLink income", () => {
   it("infers income from negative amount", () => {
     const p = parseDeepLink("?add=1&amount=-50&merchant=Refund&type=expense");
     expect(p?.type).toBe("income");

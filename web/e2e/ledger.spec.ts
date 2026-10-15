@@ -41,13 +41,14 @@ test("記帳 v4：截圖匯入審核與深層連結", async ({ page }) => {
   await expect(page.getByTestId("home-page")).toBeVisible();
 
   await page.goto("./?add=1&amount=12.5&merchant=Corner%20Cafe&type=expense");
-  await expect(page.getByTestId("tx-form-deeplink")).toBeVisible();
+  await expect(page.getByTestId("deeplink-confirm-sheet")).toBeVisible();
   await expect(page.getByTestId("tx-amount")).toHaveValue("12.5");
+  await expect(page.getByTestId("deeplink-confirm-merchant")).toContainText("Corner Cafe");
   await page.screenshot({
     path: path.join(artifactsDir, "v4-deeplink-sheet.png"),
     fullPage: true,
   });
-  await page.getByTestId("tx-save").click();
+  await page.getByTestId("deeplink-confirm-save").click();
   await expect(page.getByTestId("home-page")).toBeVisible();
 });
 

@@ -67,6 +67,7 @@ const DEBUG_PARAM_GROUPS: string[][] = [
   ["date", "Date"],
   ["add"],
   ["auto"],
+  ["confirm"],
 ];
 
 /** Multi-line debug text for support screenshots. */

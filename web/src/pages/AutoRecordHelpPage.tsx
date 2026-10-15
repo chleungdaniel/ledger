@@ -1,9 +1,13 @@
 import { useState } from "react";
-import { buildShortcutUrlTemplate } from "../lib/deeplink";
+import {
+  buildShortcutSilentUrlTemplate,
+  buildShortcutUrlTemplate,
+} from "../lib/deeplink";
 
 export function AutoRecordHelpPage() {
   const [copied, setCopied] = useState(false);
   const template = buildShortcutUrlTemplate();
+  const silentTemplate = buildShortcutSilentUrlTemplate();
 
   async function copyTemplate() {
     try {
@@ -28,15 +32,30 @@ export function AutoRecordHelpPage() {
           <li>選擇觸發條件：<strong>交易</strong>（Transaction）。</li>
           <li>設定卡片或「任何交易」，並選擇「立即執行」。</li>
           <li>新增動作：<strong>開啟 URL</strong>。</li>
-          <li>貼上以下網址模板，將變數對應到捷徑提供的 <code>Amount</code>、<code>Merchant</code>（或「金額」「商家」）。</li>
+          <li>
+            建議先用「文字」動作組出 URL，再「開啟 URL」。變數請從自動化區塊
+            <strong>「點一下任何卡時」</strong>的「數量」「商戶」插入（勿用「接收輸入」）。
+          </li>
         </ol>
+        <p className="help-subhead">確認後入帳（建議，類似清數）</p>
         <pre className="url-template" data-testid="shortcut-url-template">{template}</pre>
         <button type="button" className="btn-secondary" data-testid="copy-shortcut-url" onClick={() => void copyTemplate()}>
           {copied ? "已複製" : "複製 URL 模板"}
         </button>
         <p className="hint">
-          加上 <code>&amp;auto=1</code> 會依規則自動選分類並儲存；若需確認，改為 <code>&amp;add=1</code> 不帶 auto。
+          開啟後會顯示<strong>確認入帳</strong>畫面（金額、商戶、建議分類），點「確認入帳」才儲存。
+          若金額或商戶為空白，多半是捷徑變數接錯，不是 App 問題。
           亦支援 <code>type=income</code>、<code>date=</code> ISO 日期。
+        </p>
+        <details className="deeplink-debug">
+          <summary>進階：不確認直接儲存（不建議）</summary>
+          <pre className="url-template">{silentTemplate}</pre>
+          <p className="hint">
+            需加上 <code>&amp;confirm=0</code>；僅在金額與商戶已穩定傳入時使用。
+          </p>
+        </details>
+        <p className="hint">
+          完整步驟與 Shortcuts AI 提示詞見 <code>web/SHORTCUTS.md</code>。
         </p>
         <h3 className="help-subhead">Safari 與主畫面 App 的資料</h3>
         <p>
