@@ -1,21 +1,24 @@
 import { useState } from "react";
 import {
+  buildNotificationShortcutUrlTemplate,
   buildShortcutSilentUrlTemplate,
   buildShortcutUrlTemplate,
 } from "../lib/deeplink";
 
 export function AutoRecordHelpPage() {
-  const [copied, setCopied] = useState(false);
-  const template = buildShortcutUrlTemplate();
+  const [copied, setCopied] = useState<"notification" | "transaction" | null>(null);
+  const notificationTemplate = buildNotificationShortcutUrlTemplate();
+  const transactionTemplate = buildShortcutUrlTemplate();
   const silentTemplate = buildShortcutSilentUrlTemplate();
 
-  async function copyTemplate() {
+  async function copyTemplate(kind: "notification" | "transaction") {
+    const text = kind === "notification" ? notificationTemplate : transactionTemplate;
     try {
-      await navigator.clipboard.writeText(template);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(text);
+      setCopied(kind);
+      window.setTimeout(() => setCopied(null), 2000);
     } catch {
-      setCopied(false);
+      setCopied(null);
     }
   }
 
@@ -24,28 +27,47 @@ export function AutoRecordHelpPage() {
       <h2>自動記帳（捷徑）</h2>
       <div className="card card--soft help-card">
         <p>
-          當 iPhone 偵測到<strong>信用卡 / Apple Pay 交易</strong>時，可用「捷徑」自動開啟記帳並預填金額與商家。
-          <strong>八達通乘車</strong>多數不會觸發「交易」自動化，請改用首頁的<strong>匯入截圖</strong>。
+          建議使用 iOS 27+ 的 <strong>收到通知時</strong> 自動化：把 Wallet、八達通、PayMe 等 App 的
+          <strong>通知內文</strong> 傳入 <code>text=</code>，App 會解析金額與商戶並顯示確認入帳。
+          若你仍用 <strong>交易</strong>（Transaction）觸發但金額／商戶常為空白，請改用通知方式（見下方步驟）。
         </p>
+        <p className="help-subhead">推薦：收到通知時（通知內文）</p>
         <ol className="help-steps">
-          <li>開啟「捷徑」→「自動化」→「建立個人自動化」。</li>
-          <li>選擇觸發條件：<strong>交易</strong>（Transaction）。</li>
-          <li>設定卡片或「任何交易」，並選擇「立即執行」。</li>
-          <li>新增動作：<strong>開啟 URL</strong>。</li>
+          <li>開啟「捷徑」→「自動化」→「建立個人自動化」→ <strong>收到通知時</strong>。</li>
+          <li>選擇 App：八達通、Wallet、PayMe 等，並選「立即執行」。</li>
           <li>
-            建議先用「文字」動作組出 URL，再「開啟 URL」。變數請從自動化區塊
-            <strong>「點一下任何卡時」</strong>的「數量」「商戶」插入（勿用「接收輸入」）。
+            新增「文字」動作，組出 URL（插入觸發區的 <strong>通知內文</strong> 變數到 <code>text=</code>），再「開啟
+            URL」。
           </li>
         </ol>
-        <p className="help-subhead">確認後入帳（建議，類似清數）</p>
-        <pre className="url-template" data-testid="shortcut-url-template">{template}</pre>
-        <button type="button" className="btn-secondary" data-testid="copy-shortcut-url" onClick={() => void copyTemplate()}>
-          {copied ? "已複製" : "複製 URL 模板"}
+        <pre className="url-template" data-testid="shortcut-notification-url-template">
+          {notificationTemplate}
+        </pre>
+        <button
+          type="button"
+          className="btn-secondary"
+          data-testid="copy-notification-shortcut-url"
+          onClick={() => void copyTemplate("notification")}
+        >
+          {copied === "notification" ? "已複製" : "複製通知 URL 模板"}
+        </button>
+        <p className="help-subhead">次要：交易（Transaction）</p>
+        <p className="hint">
+          僅適用部分信用卡／Apple Pay；八達通乘車多數不會觸發。變數請從 <strong>「點一下任何卡時」</strong> 的「數量」「商戶」插入。
+        </p>
+        <pre className="url-template" data-testid="shortcut-url-template">{transactionTemplate}</pre>
+        <button
+          type="button"
+          className="btn-secondary"
+          data-testid="copy-shortcut-url"
+          onClick={() => void copyTemplate("transaction")}
+        >
+          {copied === "transaction" ? "已複製" : "複製交易 URL 模板"}
         </button>
         <p className="hint">
           開啟後會顯示<strong>確認入帳</strong>畫面（金額、商戶、建議分類），點「確認入帳」才儲存。
-          若金額或商戶為空白，多半是捷徑變數接錯，不是 App 問題。
-          亦支援 <code>type=income</code>、<code>date=</code> ISO 日期。
+          若金額仍缺，會顯示數字鍵盤與提示橫幅。亦支援 <code>type=income</code>、<code>date=</code> ISO 日期。
+          八達通亦可改用首頁<strong>匯入截圖</strong>。
         </p>
         <details className="deeplink-debug">
           <summary>進階：不確認直接儲存（不建議）</summary>

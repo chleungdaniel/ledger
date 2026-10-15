@@ -63,6 +63,7 @@ export function parseShortcutDateParam(raw: string): Date | null {
 const DEBUG_PARAM_GROUPS: string[][] = [
   ["amount", "Amount", "a", "金額"],
   ["merchant", "Merchant", "name", "m", "商戶"],
+  ["text", "body", "raw", "通知內文", "通知内容"],
   ["type", "Type"],
   ["date", "Date"],
   ["add"],
