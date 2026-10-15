@@ -85,3 +85,77 @@ export function parseShortcutAmount(raw: string | null | undefined): ParsedShort
 
   return { amount: Math.abs(n), suggestIncome: refundHint };
 }
+
+const COMBINED_MERCHANT_AMOUNT = /^(.+?)[:：]\s*(.+)$/;
+
+/** Octopus / Wallet strings like `鐵路：HK$7.90` in one query value. */
+export function splitMerchantAmountCombined(
+  text: string,
+): { merchant: string; amountPart: string } | null {
+  const s = decodeParamValue(text).trim();
+  const m = s.match(COMBINED_MERCHANT_AMOUNT);
+  if (!m) return null;
+  const amountPart = m[2].trim();
+  const { amount } = parseShortcutAmount(amountPart);
+  if (amount == null) return null;
+  return { merchant: m[1].trim(), amountPart };
+}
+
+export interface NormalizedShortcutFields {
+  amount: number | null;
+  merchant: string;
+  suggestIncome: boolean;
+}
+
+/**
+ * Resolve amount + merchant from Shortcut query params (including combined Octopus-style text).
+ */
+export function normalizeShortcutFields(
+  amountRaw: string | null,
+  merchantRaw: string | null,
+): NormalizedShortcutFields {
+  let merchant = merchantRaw != null ? decodeParamValue(merchantRaw).trim() : "";
+  let amountStr = amountRaw != null ? decodeParamValue(amountRaw).trim() : "";
+
+  if (amountStr) {
+    const split = splitMerchantAmountCombined(amountStr);
+    if (split) {
+      if (!merchant) merchant = split.merchant;
+      amountStr = split.amountPart;
+    }
+  }
+
+  if (!amountStr && merchant) {
+    const split = splitMerchantAmountCombined(merchant);
+    if (split) {
+      merchant = split.merchant;
+      amountStr = split.amountPart;
+    }
+  }
+
+  if (!amountStr && merchant) {
+    const trailing = merchant.match(/^(.+?)\s+((?:HK\$|HKD|\$|¥|￥)?\s*[\d０-９.,，．\s]+)\s*$/iu);
+    if (trailing) {
+      const candidate = parseShortcutAmount(trailing[2]);
+      if (candidate.amount != null) {
+        merchant = trailing[1].trim();
+        amountStr = trailing[2];
+      }
+    }
+  }
+
+  let parsed = parseShortcutAmount(amountStr || null);
+  if (parsed.amount == null && merchant) {
+    const split = splitMerchantAmountCombined(merchant);
+    if (split) {
+      merchant = split.merchant;
+      parsed = parseShortcutAmount(split.amountPart);
+    }
+  }
+
+  return {
+    amount: parsed.amount,
+    merchant,
+    suggestIncome: parsed.suggestIncome,
+  };
+}

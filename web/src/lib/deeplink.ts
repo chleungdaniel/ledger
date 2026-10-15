@@ -1,5 +1,9 @@
-import { parseShortcutDateParam } from "./datetime";
-import { decodeParamValue, parseShortcutAmount } from "./parseShortcutAmount";
+import { formatDeepLinkDebug, parseShortcutDateParam } from "./datetime";
+import {
+  decodeParamValue,
+  normalizeShortcutFields,
+  parseShortcutAmount,
+} from "./parseShortcutAmount";
 import type { TransactionType } from "../types";
 
 export interface DeepLinkPayload {
@@ -9,7 +13,11 @@ export interface DeepLinkPayload {
   type: TransactionType;
   /** ISO datetime; null means use open time in UI */
   date: string | null;
-  auto: boolean;
+  /**
+   * Skip the confirm sheet and save immediately when amount is valid.
+   * Requires explicit `confirm=0` (legacy `auto=1` alone now opens confirm).
+   */
+  silentAutoSave: boolean;
   amountMissing: boolean;
   /** Human-readable debug line for support screenshots */
   rawParamsDebug: string;
@@ -62,9 +70,13 @@ export function parseDeepLink(search: string): DeepLinkPayload | null {
 
   if (!add) return null;
 
-  const merchant = merchantRaw != null ? decodeParamValue(merchantRaw).trim() : "";
-  const type = parseType(params, amountRaw, merchant);
-  const { amount } = parseShortcutAmount(amountRaw);
+  const normalized = normalizeShortcutFields(amountRaw, merchantRaw);
+  const merchant = normalized.merchant;
+  const amount = normalized.amount;
+  let type = parseType(params, amountRaw, merchant);
+  if (normalized.suggestIncome && type === "expense") {
+    type = "income";
+  }
 
   const dateRaw = params.get("date") ?? params.get("Date");
   let date: string | null = null;
@@ -73,7 +85,10 @@ export function parseDeepLink(search: string): DeepLinkPayload | null {
     if (d) date = d.toISOString();
   }
 
-  const auto = params.get("auto") === "1";
+  const silentAutoSave = params.get("confirm") === "0";
+  const searchNorm = search.startsWith("?") ? search : `?${search}`;
+  const href =
+    typeof globalThis.window !== "undefined" ? globalThis.window.location.href : "";
 
   return {
     openAdd: true,
@@ -81,13 +96,21 @@ export function parseDeepLink(search: string): DeepLinkPayload | null {
     merchant,
     type,
     date,
-    auto,
-    amountMissing: auto && amount == null,
-    rawParamsDebug: "",
+    silentAutoSave,
+    amountMissing: amount == null,
+    rawParamsDebug: formatDeepLinkDebug(href, searchNorm),
   };
 }
 
+/** Recommended Shortcut URL (confirm-before-save; no silent auto). */
 export function buildShortcutUrlTemplate(origin = "https://chleungdaniel.github.io/ledger/"): string {
   const base = origin.endsWith("/") ? origin : `${origin}/`;
-  return `${base}?add=1&amount=[Amount]&merchant=[Merchant]&type=expense&auto=1`;
+  return `${base}?add=1&amount=[Amount]&merchant=[Merchant]&type=expense`;
+}
+
+/** Opt-in silent save (power users); not recommended for Wallet automations. */
+export function buildShortcutSilentUrlTemplate(
+  origin = "https://chleungdaniel.github.io/ledger/",
+): string {
+  return `${buildShortcutUrlTemplate(origin)}&auto=1&confirm=0`;
 }
