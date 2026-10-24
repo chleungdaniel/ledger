@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveWalletDate } from "./parseDates";
+import { buildWalletDateContext, resolveWalletDate, walletCivilDayKey } from "./parseDates";
 
 const REF = new Date("2026-10-09T15:00:00+08:00");
 
@@ -37,5 +37,16 @@ describe("resolveWalletDate", () => {
     expect(cn.getDate()).toBe(21);
     const ymd = resolveWalletDate("2026/10/15", REF)!;
     expect(ymd.getDate()).toBe(15);
+  });
+
+  it("keeps 昨日 and 星期三 on different civil days when both appear in one OCR", () => {
+    const thuRef = new Date("2026-10-22T12:21:00+08:00");
+    const lines = ["昨日", "星期三"];
+    const ctx = buildWalletDateContext(lines, thuRef);
+    const y = resolveWalletDate("昨日", thuRef, ctx)!;
+    const wed = resolveWalletDate("星期三", thuRef, ctx)!;
+    expect(walletCivilDayKey(y)).not.toBe(walletCivilDayKey(wed));
+    expect(walletCivilDayKey(y)).toBe("2026-10-21");
+    expect(walletCivilDayKey(wed)).toBe("2026-10-14");
   });
 });
