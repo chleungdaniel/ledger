@@ -13,6 +13,8 @@ export interface ImportCandidate {
   categoryId: string | null;
   selected: boolean;
   isDuplicate: boolean;
+  /** Set when matched to ledger or an earlier row in the same import batch. */
+  duplicateSource?: "ledger" | "batch";
   /** OCR amount unreadable — row shown unchecked for manual fix. */
   amountInvalid?: boolean;
   parseWarning?: string;
