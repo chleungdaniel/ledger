@@ -52,17 +52,64 @@ function isTransactionLine(line: string): RegExpMatchArray | null {
   return line.match(TX_AMOUNT);
 }
 
+/** Date on following lines, including one shared trailing label after consecutive tx rows. */
+export function findWalletDateForTransaction(
+  lines: string[],
+  txIndex: number,
+  refDate: Date,
+): Date | null {
+  let j = txIndex + 1;
+  while (j < lines.length) {
+    const next = lines[j];
+    if (isLikelyDateLine(next)) {
+      return resolveWalletDate(next, refDate);
+    }
+    if (isTransactionLine(next)) {
+      j += 1;
+      continue;
+    }
+    if (JOURNEY_ONLY.test(next) || (JUNK_LINE.test(next) && !isTransactionLine(next))) {
+      j += 1;
+      continue;
+    }
+    j += 1;
+  }
+  return null;
+}
+
+function findWalletDateBeforeTransaction(
+  lines: string[],
+  txIndex: number,
+  refDate: Date,
+): Date | null {
+  for (let k = txIndex - 1; k >= 0; k--) {
+    const prev = lines[k];
+    if (isTransactionLine(prev)) break;
+    if (isLikelyDateLine(prev)) {
+      return resolveWalletDate(prev, refDate);
+    }
+  }
+  return null;
+}
+
 export function parseWalletOcrText(text: string, refDate = new Date()): ImportCandidate[] {
   const normalized = normalizeOcrText(text);
   const lines = normalized.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
 
   const candidates: ImportCandidate[] = [];
   const rates = loadFxRates();
+  let stickyDate: Date | null = null;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (JOURNEY_ONLY.test(line)) continue;
     if (JUNK_LINE.test(line) && !isTransactionLine(line)) continue;
+
+    if (isLikelyDateLine(line) && !isTransactionLine(line)) {
+      const resolvedSticky = resolveWalletDate(line, refDate);
+      if (resolvedSticky) stickyDate = resolvedSticky;
+      continue;
+    }
 
     const match = isTransactionLine(line);
     if (!match) continue;
@@ -81,23 +128,21 @@ export function parseWalletOcrText(text: string, refDate = new Date()): ImportCa
     const { value: rawAmount, invalid: amountInvalid } = parseAmountDigits(match[4]);
 
     const noteParts: string[] = [];
-    let dateLine = "";
     let j = i + 1;
     while (j < lines.length) {
       const next = lines[j];
-      if (isTransactionLine(next)) break;
-      if (isLikelyDateLine(next)) {
-        dateLine = next;
-        j += 1;
-        break;
-      }
+      if (isTransactionLine(next) || isLikelyDateLine(next)) break;
       if (!JOURNEY_ONLY.test(next) && !JUNK_LINE.test(next)) {
         noteParts.push(next);
       }
       j += 1;
     }
 
-    const resolved = dateLine ? resolveWalletDate(dateLine, refDate) : refDate;
+    const dateAfter = findWalletDateForTransaction(lines, i, refDate);
+    const dateBefore = findWalletDateBeforeTransaction(lines, i, refDate);
+    const resolved = dateAfter ?? dateBefore ?? stickyDate ?? refDate;
+    if (dateAfter) stickyDate = dateAfter;
+    else if (dateBefore) stickyDate = dateBefore;
     const dateIso = (resolved ?? refDate).toISOString();
 
     let amount = rawAmount ?? 0;
@@ -133,8 +178,6 @@ export function parseWalletOcrText(text: string, refDate = new Date()): ImportCa
       parseWarning: amountInvalid ? "金額未能讀取，請檢查" : undefined,
       amountInvalid,
     });
-
-    i = j - 1;
   }
 
   return candidates;
@@ -202,6 +245,67 @@ Apple Pay
 Uber NT$145.P~
 Apple Pay Q
 23/9/2026
+`.trim();
+
+/** Octopus / Wallet: per-row 昨日 / 星期三 / 星期二 labels (multi-day screenshot). */
+export const MULTI_DAY_WALLET_OCR = `
+巴士 HK$7.70
+昨日
+巴士 HK$61.00
+昨日
+巴士 HK$7.80
+昨日
+B 新界太和 HK$7.20
+巴士
+星期三
+B 鐵路 HK$7.90
+星期三
+B 鐵路 HK$7.90
+星期三
+B 新界太和 +HK$4.30
+車資調整
+星期三
+B 新界大埔林村 HK$12.10
+巴士
+星期三
+B 新界太和 HK$7.30
+巴士
+星期二
+B 鐵路 HK$7.90
+星期二
+B 鐵路 HK$7.90
+星期二
+消費 HK$56.00
+星期二
+消費 HK$26.00
+星期二
+B 新界大埔林村 HK$7.80
+巴士
+星期二
+`.trim();
+
+/** Citi card list: weekday labels plus absolute DD/MM/YYYY rows. */
+export const CITI_MIXED_DATE_OCR = `
+Five Guys HK$308.00
+星期一
+Food Fiesta HK$55.00
+星期日
+Cafe HK$120.00
+星期六
+必勝客 HK$289.00
+16/10/2026
+Apple Store HK$21898.00
+15/10/2026
+`.trim();
+
+/** Shared trailing weekday after consecutive Octopus rows (OCR order). */
+export const OCTOPUS_SHARED_TRAILING_DATE_OCR = `
+B 鐵路 HK$7.90
+B 鐵路 HK$7.90
+星期三
+B 新界太和 HK$7.30
+巴士
+星期二
 `.trim();
 
 export const REAL_OCTOPUS_OCR = `
