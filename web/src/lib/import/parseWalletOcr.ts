@@ -1,6 +1,13 @@
 import { newId } from "../format";
 import { hkdFromForeign, loadFxRates } from "./fxSettings";
-import { isLikelyDateLine, resolveWalletDate } from "./parseDates";
+import {
+  buildWalletDateContext,
+  extractWalletDateToken,
+  isLikelyDateLine,
+  resolveWalletDate,
+  walletDateToIso,
+  type WalletDateContext,
+} from "./parseDates";
 import type { ImportCandidate } from "./types";
 
 const JOURNEY_ONLY = /^旅程中$/;
@@ -52,43 +59,41 @@ function isTransactionLine(line: string): RegExpMatchArray | null {
   return line.match(TX_AMOUNT);
 }
 
-/** Date on following lines, including one shared trailing label after consecutive tx rows. */
-export function findWalletDateForTransaction(
-  lines: string[],
-  txIndex: number,
+function resolveLineWalletDate(
+  line: string,
   refDate: Date,
+  ctx: WalletDateContext,
 ): Date | null {
-  let j = txIndex + 1;
-  while (j < lines.length) {
-    const next = lines[j];
-    if (isLikelyDateLine(next)) {
-      return resolveWalletDate(next, refDate);
-    }
-    if (isTransactionLine(next)) {
-      j += 1;
-      continue;
-    }
-    if (JOURNEY_ONLY.test(next) || (JUNK_LINE.test(next) && !isTransactionLine(next))) {
-      j += 1;
-      continue;
-    }
-    j += 1;
-  }
-  return null;
+  const token = extractWalletDateToken(line);
+  if (!token && !isLikelyDateLine(line)) return null;
+  return resolveWalletDate(token ?? line, refDate, ctx);
 }
 
-function findWalletDateBeforeTransaction(
+/** Nearest Wallet per-row date: subtitle row or adjacent lines, never skipping other amount rows. */
+export function findWalletDateNearTransaction(
   lines: string[],
   txIndex: number,
   refDate: Date,
+  ctx: WalletDateContext,
 ): Date | null {
+  for (let j = txIndex + 1; j < lines.length; j++) {
+    const next = lines[j];
+    if (isTransactionLine(next)) break;
+    if (JOURNEY_ONLY.test(next)) continue;
+    if (JUNK_LINE.test(next) && !isTransactionLine(next)) continue;
+    const resolved = resolveLineWalletDate(next, refDate, ctx);
+    if (resolved) return resolved;
+  }
+
   for (let k = txIndex - 1; k >= 0; k--) {
     const prev = lines[k];
     if (isTransactionLine(prev)) break;
-    if (isLikelyDateLine(prev)) {
-      return resolveWalletDate(prev, refDate);
-    }
+    if (JOURNEY_ONLY.test(prev)) continue;
+    if (JUNK_LINE.test(prev) && !isTransactionLine(prev)) continue;
+    const resolved = resolveLineWalletDate(prev, refDate, ctx);
+    if (resolved) return resolved;
   }
+
   return null;
 }
 
@@ -98,18 +103,12 @@ export function parseWalletOcrText(text: string, refDate = new Date()): ImportCa
 
   const candidates: ImportCandidate[] = [];
   const rates = loadFxRates();
-  let stickyDate: Date | null = null;
+  const dateCtx = buildWalletDateContext(lines, refDate);
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (JOURNEY_ONLY.test(line)) continue;
     if (JUNK_LINE.test(line) && !isTransactionLine(line)) continue;
-
-    if (isLikelyDateLine(line) && !isTransactionLine(line)) {
-      const resolvedSticky = resolveWalletDate(line, refDate);
-      if (resolvedSticky) stickyDate = resolvedSticky;
-      continue;
-    }
 
     const match = isTransactionLine(line);
     if (!match) continue;
@@ -138,12 +137,9 @@ export function parseWalletOcrText(text: string, refDate = new Date()): ImportCa
       j += 1;
     }
 
-    const dateAfter = findWalletDateForTransaction(lines, i, refDate);
-    const dateBefore = findWalletDateBeforeTransaction(lines, i, refDate);
-    const resolved = dateAfter ?? dateBefore ?? stickyDate ?? refDate;
-    if (dateAfter) stickyDate = dateAfter;
-    else if (dateBefore) stickyDate = dateBefore;
-    const dateIso = (resolved ?? refDate).toISOString();
+    const resolved =
+      findWalletDateNearTransaction(lines, i, refDate, dateCtx) ?? refDate;
+    const dateIso = walletDateToIso(resolved);
 
     let amount = rawAmount ?? 0;
     let originalAmount: number | undefined;
@@ -247,30 +243,38 @@ Apple Pay Q
 23/9/2026
 `.trim();
 
-/** Octopus / Wallet: per-row 昨日 / 星期三 / 星期二 labels (multi-day screenshot). */
-export const MULTI_DAY_WALLET_OCR = `
-巴士 HK$7.70
+/** Screenshot C — Wallet Octopus @ ~12:21, newest first, date on each row’s subtitle line. */
+export const WALLET_OCTOPUS_SCREENSHOT_C_OCR = `
+B 新界大埔 HK$7.70
+巴士 昨日
+消費 HK$61.00
 昨日
-巴士 HK$61.00
-昨日
-巴士 HK$7.80
-昨日
+B 新界八仙嶺 HK$7.80
+巴士 昨日
 B 新界太和 HK$7.20
-巴士
-星期三
+巴士 星期三
 B 鐵路 HK$7.90
 星期三
 B 鐵路 HK$7.90
 星期三
 B 新界太和 +HK$4.30
-車資調整
+車資調整 - 巴士 星期三
+`.trim();
+
+/** Screenshot D — two weekday blocks with per-row date labels. */
+export const WALLET_OCTOPUS_SCREENSHOT_D_OCR = `
+B 新界太和 HK$7.20
+巴士 星期三
+B 鐵路 HK$7.90
 星期三
+B 鐵路 HK$7.90
+星期三
+B 新界太和 +HK$4.30
+車資調整 - 巴士 星期三
 B 新界大埔林村 HK$12.10
-巴士
-星期三
+巴士 星期三
 B 新界太和 HK$7.30
-巴士
-星期二
+巴士 星期二
 B 鐵路 HK$7.90
 星期二
 B 鐵路 HK$7.90
@@ -279,9 +283,21 @@ B 鐵路 HK$7.90
 星期二
 消費 HK$26.00
 星期二
-B 新界大埔林村 HK$7.80
-巴士
+B 鐵路 HK$7.90
 星期二
+B 鐵路 HK$7.90
+星期二
+B 新界大埔林村 HK$7.80
+巴士 星期二
+`.trim();
+
+/** OCR stacks amount lines before date labels — must not borrow a later block’s date. */
+export const WALLET_GROUPED_AMOUNTS_BEFORE_DATES_OCR = `
+B 新界大埔 HK$7.70
+消費 HK$61.00
+B 新界太和 HK$7.20
+昨日
+星期三
 `.trim();
 
 /** Citi card list: weekday labels plus absolute DD/MM/YYYY rows. */
@@ -296,16 +312,6 @@ Cafe HK$120.00
 16/10/2026
 Apple Store HK$21898.00
 15/10/2026
-`.trim();
-
-/** Shared trailing weekday after consecutive Octopus rows (OCR order). */
-export const OCTOPUS_SHARED_TRAILING_DATE_OCR = `
-B 鐵路 HK$7.90
-B 鐵路 HK$7.90
-星期三
-B 新界太和 HK$7.30
-巴士
-星期二
 `.trim();
 
 export const REAL_OCTOPUS_OCR = `

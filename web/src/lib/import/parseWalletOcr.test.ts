@@ -2,17 +2,19 @@ import { describe, expect, it, beforeEach } from "vitest";
 import { saveFxRates } from "./fxSettings";
 import {
   CITI_MIXED_DATE_OCR,
-  MULTI_DAY_WALLET_OCR,
   OCTOPUS_OCR_FIXTURE,
-  OCTOPUS_SHARED_TRAILING_DATE_OCR,
   parseWalletOcrText,
   REAL_CARD_OCR,
   REAL_OCTOPUS_OCR,
+  WALLET_GROUPED_AMOUNTS_BEFORE_DATES_OCR,
+  WALLET_OCTOPUS_SCREENSHOT_C_OCR,
+  WALLET_OCTOPUS_SCREENSHOT_D_OCR,
   WALLET_OCR_FIXTURE,
 } from "./parseWalletOcr";
 
 const REF = new Date("2026-10-09T09:00:00+08:00");
-const MULTI_DAY_REF = new Date("2026-10-22T12:00:00+08:00");
+/** Saturday ~12:21 HKT — matches user Wallet screenshots C/D import time. */
+const SCREENSHOT_REF = new Date("2026-10-24T12:21:00+08:00");
 
 function hktMonthDay(iso: string): string {
   const f = new Intl.DateTimeFormat("en-CA", {
@@ -96,7 +98,7 @@ describe("parseWalletOcrText", () => {
     expect(rows[0].merchant).toBe("新界太和");
     expect(rows[0].type).toBe("income");
     expect(rows[0].amount).toBe(4.3);
-    expect(new Date(rows[0].date).getMinutes()).toBe(29);
+    expect(hktMonthDay(rows[0].date)).toBe("10-09");
 
     expect(rows[1].merchant).toContain("大埔");
     expect(rows[1].amount).toBe(12.1);
@@ -109,35 +111,45 @@ describe("parseWalletOcrText", () => {
     expect(yday.length).toBeGreaterThanOrEqual(5);
   });
 
-  it("assigns per-row and per-group dates across 昨日 / 星期三 / 星期二 (multi-day Octopus)", () => {
-    const rows = parseWalletOcrText(MULTI_DAY_WALLET_OCR, MULTI_DAY_REF);
-    expect(rows).toHaveLength(14);
+  it("screenshot C: 昨日 and 星期三 are distinct civil days (per-row subtitle dates)", () => {
+    const rows = parseWalletOcrText(WALLET_OCTOPUS_SCREENSHOT_C_OCR, SCREENSHOT_REF);
+    expect(rows).toHaveLength(7);
 
-    const yday = rows.filter((r) => hktMonthDay(r.date) === "10-21" && r.merchant === "巴士");
+    const yday = rows.filter((r) => hktMonthDay(r.date) === "10-23");
     expect(yday).toHaveLength(3);
     expect(yday.map((r) => r.amount).sort((a, b) => a - b)).toEqual([7.7, 7.8, 61]);
 
-    const wed = rows.filter((r) => hktMonthDay(r.date) === "10-21" && r.merchant !== "巴士");
-    expect(wed).toHaveLength(5);
+    const wed = rows.filter((r) => hktMonthDay(r.date) === "10-21");
+    expect(wed).toHaveLength(4);
     expect(wed.filter((r) => r.merchant === "鐵路")).toHaveLength(2);
     expect(wed.find((r) => r.type === "income")?.amount).toBe(4.3);
 
-    const tue = rows.filter((r) => hktMonthDay(r.date) === "10-20");
-    expect(tue).toHaveLength(6);
-    expect(tue.filter((r) => r.merchant === "鐵路")).toHaveLength(2);
+    expect(hktMonthDay(yday[0].date)).not.toBe(hktMonthDay(wed[0].date));
   });
 
-  it("applies one trailing weekday to consecutive Octopus rows", () => {
-    const rows = parseWalletOcrText(OCTOPUS_SHARED_TRAILING_DATE_OCR, MULTI_DAY_REF);
+  it("screenshot D: 星期三 block then 星期二 block with per-row labels", () => {
+    const rows = parseWalletOcrText(WALLET_OCTOPUS_SCREENSHOT_D_OCR, SCREENSHOT_REF);
+    expect(rows).toHaveLength(13);
+
+    const wed = rows.filter((r) => hktMonthDay(r.date) === "10-21");
+    expect(wed).toHaveLength(5);
+
+    const tue = rows.filter((r) => hktMonthDay(r.date) === "10-20");
+    expect(tue).toHaveLength(8);
+    expect(tue.filter((r) => r.merchant === "鐵路")).toHaveLength(4);
+  });
+
+  it("does not scan past the next amount row to steal a later date label", () => {
+    const rows = parseWalletOcrText(WALLET_GROUPED_AMOUNTS_BEFORE_DATES_OCR, SCREENSHOT_REF);
     expect(rows).toHaveLength(3);
-    expect(rows[0].amount).toBe(7.9);
-    expect(hktMonthDay(rows[0].date)).toBe("10-21");
-    expect(hktMonthDay(rows[1].date)).toBe("10-21");
-    expect(hktMonthDay(rows[2].date)).toBe("10-20");
+    expect(hktMonthDay(rows[0].date)).toBe(hktMonthDay(rows[1].date));
+    expect(hktMonthDay(rows[2].date)).toBe("10-23");
+    expect(hktMonthDay(rows[2].date)).not.toBe("10-21");
   });
 
   it("parses Citi-style mixed weekday and absolute dates", () => {
-    const rows = parseWalletOcrText(CITI_MIXED_DATE_OCR, MULTI_DAY_REF);
+    const citiRef = new Date("2026-10-22T12:00:00+08:00");
+    const rows = parseWalletOcrText(CITI_MIXED_DATE_OCR, citiRef);
     expect(rows).toHaveLength(5);
     expect(hktMonthDay(rows[0].date)).toBe("10-19");
     expect(rows[0].amount).toBe(308);

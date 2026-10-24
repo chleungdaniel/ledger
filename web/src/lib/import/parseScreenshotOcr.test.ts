@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { parseScreenshotOcrText } from "./parseScreenshotOcr";
-import { CITI_MIXED_DATE_OCR, MULTI_DAY_WALLET_OCR } from "./parseWalletOcr";
+import {
+  CITI_MIXED_DATE_OCR,
+  WALLET_OCTOPUS_SCREENSHOT_C_OCR,
+} from "./parseWalletOcr";
 
-const MULTI_DAY_REF = new Date("2026-10-22T12:00:00+08:00");
+const SCREENSHOT_REF = new Date("2026-10-24T12:21:00+08:00");
 
 const PAYME_MULTI_DAY_OCR = `
 港幣 0.00
@@ -31,7 +34,7 @@ function hktMonthDay(iso: string): string {
 
 describe("parseScreenshotOcrText", () => {
   it("routes PayMe OCR with multiple date section headers", () => {
-    const rows = parseScreenshotOcrText(PAYME_MULTI_DAY_OCR, MULTI_DAY_REF);
+    const rows = parseScreenshotOcrText(PAYME_MULTI_DAY_OCR, SCREENSHOT_REF);
     expect(rows).toHaveLength(3);
     const dates = rows.map((r) => hktMonthDay(r.date)).sort();
     expect(dates).toEqual(["10-15", "10-18", "10-21"]);
@@ -39,19 +42,17 @@ describe("parseScreenshotOcrText", () => {
     expect(rows.find((r) => hktMonthDay(r.date) === "10-18")?.amount).toBe(239);
   });
 
-  it("routes wallet OCR with multi-day Octopus labels", () => {
-    const rows = parseScreenshotOcrText(MULTI_DAY_WALLET_OCR, MULTI_DAY_REF);
-    const byDay = new Map<string, number>();
-    for (const r of rows) {
-      const key = hktMonthDay(r.date);
-      byDay.set(key, (byDay.get(key) ?? 0) + 1);
-    }
-    expect(byDay.get("10-21")).toBe(8);
-    expect(byDay.get("10-20")).toBe(6);
+  it("routes wallet OCR screenshot C with distinct 昨日 vs 星期三 days", () => {
+    const rows = parseScreenshotOcrText(WALLET_OCTOPUS_SCREENSHOT_C_OCR, SCREENSHOT_REF);
+    const keys = [...new Set(rows.map((r) => hktMonthDay(r.date)))].sort();
+    expect(keys).toEqual(["10-21", "10-23"]);
+    expect(rows.filter((r) => hktMonthDay(r.date) === "10-23")).toHaveLength(3);
+    expect(rows.filter((r) => hktMonthDay(r.date) === "10-21")).toHaveLength(4);
   });
 
   it("routes Citi-style wallet OCR with mixed date markers", () => {
-    const rows = parseScreenshotOcrText(CITI_MIXED_DATE_OCR, MULTI_DAY_REF);
+    const citiRef = new Date("2026-10-22T12:00:00+08:00");
+    const rows = parseScreenshotOcrText(CITI_MIXED_DATE_OCR, citiRef);
     expect(rows.map((r) => hktMonthDay(r.date))).toEqual([
       "10-19",
       "10-18",
