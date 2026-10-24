@@ -85,7 +85,7 @@ export function ScreenshotImportPage({ onClose, fixtureKey }: ScreenshotImportPa
   );
 
   async function commit() {
-    const chosen = candidates.filter((c) => c.selected);
+    const chosen = candidates.filter((c) => c.selected && !c.isDuplicate);
     for (const row of chosen) {
       if (!row.categoryId) continue;
       await upsertTransaction({
@@ -147,7 +147,7 @@ export function ScreenshotImportPage({ onClose, fixtureKey }: ScreenshotImportPa
       {phase === "review" && (
         <div className="import-review">
           <p className="pad-horizontal muted">
-            勾選要加入的列；重複項目已自動取消。外幣金額已依匯率換算，可手動修改。
+            勾選要加入的列；已存在或重複截圖的帳務會自動略過。外幣金額已依匯率換算，可手動修改。
           </p>
           <div className="list-card list-card--elevated import-list" data-testid="import-review-list">
             {candidates.map((row) => (
@@ -166,7 +166,11 @@ export function ScreenshotImportPage({ onClose, fixtureKey }: ScreenshotImportPa
                 </label>
                 <div className="import-row__main">
                   <strong>{row.merchant}</strong>
-                  {row.isDuplicate && <span className="import-dup-badge">可能重複</span>}
+                  {row.isDuplicate && (
+                    <span className="import-dup-badge">
+                      {row.duplicateSource === "ledger" ? "已存在" : "重複截圖"}
+                    </span>
+                  )}
                   {row.parseWarning && (
                     <span className="import-dup-badge">{row.parseWarning}</span>
                   )}
