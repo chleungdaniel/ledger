@@ -74,6 +74,22 @@ export function resolveWalletDate(line: string, ref: Date): Date | null {
     return new Date(year, month, day, 12, 0, 0, 0);
   }
 
+  const ymdCn = t.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+  if (ymdCn) {
+    const year = Number(ymdCn[1]);
+    const month = Number(ymdCn[2]) - 1;
+    const day = Number(ymdCn[3]);
+    return new Date(year, month, day, 12, 0, 0, 0);
+  }
+
+  const ymdSlash = t.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+  if (ymdSlash) {
+    const year = Number(ymdSlash[1]);
+    const month = Number(ymdSlash[2]) - 1;
+    const day = Number(ymdSlash[3]);
+    return new Date(year, month, day, 12, 0, 0, 0);
+  }
+
   return null;
 }
 
@@ -87,7 +103,7 @@ export function isLikelyDateLine(line: string): boolean {
   const t = normalizeDateToken(line.trim());
   if (!t) return false;
   return (
-    /今日|今天|昨日|昨天|分鐘前|小時前|天前|星期[日天一二三四五六]|\d{1,2}\/\d{1,2}\/\d{4}/.test(
+    /今日|今天|昨日|昨天|分鐘前|小時前|天前|星期[日天一二三四五六]|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}\/\d{1,2}\/\d{1,2}|\d{4}年\d{1,2}月\d{1,2}日/.test(
       t,
     ) || /^星期/.test(t)
   );

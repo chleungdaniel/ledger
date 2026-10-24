@@ -30,4 +30,12 @@ describe("resolveWalletDate", () => {
     expect(d.getMonth()).toBe(8);
     expect(d.getDate()).toBe(26);
   });
+
+  it("parses Chinese and y/m/d absolute dates", () => {
+    const cn = resolveWalletDate("2026年10月21日", REF)!;
+    expect(cn.getMonth()).toBe(9);
+    expect(cn.getDate()).toBe(21);
+    const ymd = resolveWalletDate("2026/10/15", REF)!;
+    expect(ymd.getDate()).toBe(15);
+  });
 });

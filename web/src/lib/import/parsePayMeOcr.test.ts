@@ -60,6 +60,22 @@ describe("parsePayMeOcrText", () => {
     expect(skipped[0].amount).toBe(371);
   });
 
+  it("keeps separate dates for each PayMe section header", () => {
+    const text = `
+2026年10月21日
+lunch
+- 71.00
+2026年10月18日
+- 239.00
+2026年10月15日
+lunch
+- 71.00
+`.trim();
+    const rows = parsePayMeOcrText(text, REF);
+    expect(rows).toHaveLength(3);
+    expect(rows.map((r) => new Date(r.date).getDate()).sort((a, b) => a - b)).toEqual([15, 18, 21]);
+  });
+
   it("tolerates minus and amount spacing variants", () => {
     const variant = `
 2026年10月10日

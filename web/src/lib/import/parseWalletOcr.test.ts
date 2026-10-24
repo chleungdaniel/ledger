@@ -1,7 +1,10 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { saveFxRates } from "./fxSettings";
 import {
+  CITI_MIXED_DATE_OCR,
+  MULTI_DAY_WALLET_OCR,
   OCTOPUS_OCR_FIXTURE,
+  OCTOPUS_SHARED_TRAILING_DATE_OCR,
   parseWalletOcrText,
   REAL_CARD_OCR,
   REAL_OCTOPUS_OCR,
@@ -9,6 +12,7 @@ import {
 } from "./parseWalletOcr";
 
 const REF = new Date("2026-10-09T09:00:00+08:00");
+const MULTI_DAY_REF = new Date("2026-10-22T12:00:00+08:00");
 
 function hktMonthDay(iso: string): string {
   const f = new Intl.DateTimeFormat("en-CA", {
@@ -103,5 +107,45 @@ describe("parseWalletOcrText", () => {
 
     const yday = rows.filter((r) => hktMonthDay(r.date) === "10-08");
     expect(yday.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("assigns per-row and per-group dates across 昨日 / 星期三 / 星期二 (multi-day Octopus)", () => {
+    const rows = parseWalletOcrText(MULTI_DAY_WALLET_OCR, MULTI_DAY_REF);
+    expect(rows).toHaveLength(14);
+
+    const yday = rows.filter((r) => hktMonthDay(r.date) === "10-21" && r.merchant === "巴士");
+    expect(yday).toHaveLength(3);
+    expect(yday.map((r) => r.amount).sort((a, b) => a - b)).toEqual([7.7, 7.8, 61]);
+
+    const wed = rows.filter((r) => hktMonthDay(r.date) === "10-21" && r.merchant !== "巴士");
+    expect(wed).toHaveLength(5);
+    expect(wed.filter((r) => r.merchant === "鐵路")).toHaveLength(2);
+    expect(wed.find((r) => r.type === "income")?.amount).toBe(4.3);
+
+    const tue = rows.filter((r) => hktMonthDay(r.date) === "10-20");
+    expect(tue).toHaveLength(6);
+    expect(tue.filter((r) => r.merchant === "鐵路")).toHaveLength(2);
+  });
+
+  it("applies one trailing weekday to consecutive Octopus rows", () => {
+    const rows = parseWalletOcrText(OCTOPUS_SHARED_TRAILING_DATE_OCR, MULTI_DAY_REF);
+    expect(rows).toHaveLength(3);
+    expect(rows[0].amount).toBe(7.9);
+    expect(hktMonthDay(rows[0].date)).toBe("10-21");
+    expect(hktMonthDay(rows[1].date)).toBe("10-21");
+    expect(hktMonthDay(rows[2].date)).toBe("10-20");
+  });
+
+  it("parses Citi-style mixed weekday and absolute dates", () => {
+    const rows = parseWalletOcrText(CITI_MIXED_DATE_OCR, MULTI_DAY_REF);
+    expect(rows).toHaveLength(5);
+    expect(hktMonthDay(rows[0].date)).toBe("10-19");
+    expect(rows[0].amount).toBe(308);
+    expect(hktMonthDay(rows[1].date)).toBe("10-18");
+    expect(hktMonthDay(rows[2].date)).toBe("10-17");
+    expect(hktMonthDay(rows[3].date)).toBe("10-16");
+    expect(rows[3].merchant).toContain("必勝客");
+    expect(hktMonthDay(rows[4].date)).toBe("10-15");
+    expect(rows[4].amount).toBe(21898);
   });
 });
