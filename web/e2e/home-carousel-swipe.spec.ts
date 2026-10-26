@@ -74,7 +74,8 @@ test("首頁圓餅滑動：月結餘↔所有結餘與摘要同步", async ({ pa
   await expect(page.getByTestId("home-summary-expense-label")).toContainText("月支出");
 
   await page.goto("./?add=1&amount=3&type=expense&merchant=Swipe%20Test&auto=1");
-  await expect(page.getByTestId("deeplink-confirm-sheet")).toBeVisible();
+  await expect(page.getByTestId("imports-inbox-page")).toBeVisible();
   await page.getByTestId("deeplink-confirm-save").click();
+  await page.getByRole("button", { name: "返回" }).click();
   await expect(page.getByTestId("home-page")).toBeVisible({ timeout: 15_000 });
 });

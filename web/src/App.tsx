@@ -3,7 +3,9 @@ import type { ReportPeriod } from "./lib/analytics";
 import { parseDeepLink, type DeepLinkPayload } from "./lib/deeplink";
 import { BackupSection } from "./pages/BackupSection";
 import { OpeningBalanceSection } from "./pages/OpeningBalanceSection";
-import { AutoRecordHelpPage } from "./pages/AutoRecordHelpPage";
+import { DeepLinkIngestor } from "./components/DeepLinkIngestor";
+import { AutoRecordWizard } from "./pages/AutoRecordWizard";
+import { ImportsInboxPage } from "./pages/ImportsInboxPage";
 import { BudgetPage } from "./pages/BudgetPage";
 import { CategoriesPage } from "./pages/CategoriesPage";
 import { HomePage } from "./pages/HomePage";
@@ -27,9 +29,12 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("home");
   const [reportPeriod, setReportPeriod] = useState<ReportPeriod>("month");
   const [importOpen, setImportOpen] = useState(() => Boolean(readImportFixture()));
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const [inboxHighlightId, setInboxHighlightId] = useState<string | null>(null);
   const [deepLink, setDeepLink] = useState<DeepLinkPayload | null>(() =>
     parseDeepLink(window.location.search),
   );
+  const [silentDeepLink, setSilentDeepLink] = useState<DeepLinkPayload | null>(null);
 
   const importFixture = useMemo(() => readImportFixture(), []);
 
@@ -46,21 +51,42 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  const openInbox = (highlightId: string | null = null) => {
+    setInboxHighlightId(highlightId);
+    setInboxOpen(true);
+  };
+
   return (
     <div className="app-shell">
+      <DeepLinkIngestor
+        deepLink={deepLink}
+        onConsumed={consumeDeepLink}
+        onOpenInbox={openInbox}
+        onSilentDeepLink={setSilentDeepLink}
+      />
       <main className="app-main">
         {importOpen ? (
           <ScreenshotImportPage
             fixtureKey={importFixture}
             onClose={() => setImportOpen(false)}
           />
+        ) : inboxOpen ? (
+          <ImportsInboxPage
+            highlightId={inboxHighlightId}
+            onConsumedHighlight={() => setInboxHighlightId(null)}
+            onClose={() => {
+              setInboxOpen(false);
+              setInboxHighlightId(null);
+            }}
+          />
         ) : (
           <>
             {tab === "home" && (
               <HomePage
-                deepLink={deepLink}
-                onDeepLinkConsumed={consumeDeepLink}
+                deepLink={silentDeepLink}
+                onDeepLinkConsumed={() => setSilentDeepLink(null)}
                 onOpenImport={() => setImportOpen(true)}
+                onOpenInbox={() => openInbox(null)}
                 onNavigateTab={(t) => setTab(t)}
               />
             )}
@@ -71,7 +97,7 @@ export default function App() {
             {tab === "categories" && (
               <>
                 <CategoriesPage />
-                <AutoRecordHelpPage />
+                <AutoRecordWizard />
                 <section className="section pad-horizontal" data-testid="settings-section">
                   <h2>設定</h2>
                   <OpeningBalanceSection />
@@ -82,7 +108,7 @@ export default function App() {
           </>
         )}
       </main>
-      {!importOpen && (
+      {!importOpen && !inboxOpen && (
         <nav className="tab-bar" aria-label="主要導覽">
           {TABS.map((t) => (
             <button

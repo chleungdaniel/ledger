@@ -28,13 +28,13 @@ import { PwaSyncControls } from "../components/PwaSyncControls";
 import { isInBrowserTab } from "../lib/runtimeContext";
 import { useLedger } from "../store/LedgerContext";
 import type { Transaction } from "../types";
-import { DeepLinkConfirmSheet } from "../components/DeepLinkConfirmSheet";
 import { TransactionFormPage, type TransactionFormPreset } from "./TransactionFormPage";
 
 type AppTab = "budget" | "reports" | "categories";
 
 interface HomePageProps {
   onOpenImport: () => void;
+  onOpenInbox: () => void;
   onNavigateTab: (tab: AppTab) => void;
   deepLink: DeepLinkPayload | null;
   onDeepLinkConsumed: () => void;
@@ -42,6 +42,7 @@ interface HomePageProps {
 
 export function HomePage({
   onOpenImport,
+  onOpenInbox,
   onNavigateTab,
   deepLink,
   onDeepLinkConsumed,
@@ -73,8 +74,6 @@ export function HomePage({
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [formPreset, setFormPreset] = useState<TransactionFormPreset | undefined>();
   const [deepLinkToast, setDeepLinkToast] = useState(false);
-  const [pendingDeepLink, setPendingDeepLink] = useState<DeepLinkPayload | null>(null);
-
   useEffect(() => {
     if (!deepLink?.openAdd || loading) return;
 
@@ -108,10 +107,8 @@ export function HomePage({
           window.location.search,
         ),
       });
-    } else {
-      setPendingDeepLink(deepLink);
+      onDeepLinkConsumed();
     }
-    onDeepLinkConsumed();
   }, [deepLink, loading, onDeepLinkConsumed, categories, transactions]);
 
   const scopedTxs = useMemo(
@@ -177,20 +174,6 @@ export function HomePage({
       note: undoTx.note,
     });
     setUndoTx(null);
-  }
-
-  if (pendingDeepLink) {
-    return (
-      <DeepLinkConfirmSheet
-        deepLink={pendingDeepLink}
-        onClose={() => setPendingDeepLink(null)}
-        onSaved={() => {
-          if (isInBrowserTab()) {
-            setDeepLinkToast(true);
-          }
-        }}
-      />
-    );
   }
 
   if (formType || editing) {
@@ -391,6 +374,7 @@ export function HomePage({
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         onOpenImport={onOpenImport}
+        onOpenInbox={onOpenInbox}
         onNavigate={onNavigateTab}
       />
     </div>
