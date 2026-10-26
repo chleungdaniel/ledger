@@ -41,14 +41,16 @@ test("記帳 v4：截圖匯入審核與深層連結", async ({ page }) => {
   await expect(page.getByTestId("home-page")).toBeVisible();
 
   await page.goto("./?add=1&amount=12.5&merchant=Corner%20Cafe&type=expense");
-  await expect(page.getByTestId("deeplink-confirm-sheet")).toBeVisible();
+  await expect(page.getByTestId("imports-inbox-page")).toBeVisible();
+  await expect(page.getByTestId("inbox-row-detail")).toBeVisible();
   await expect(page.getByTestId("tx-amount")).toHaveValue("12.5");
-  await expect(page.getByTestId("deeplink-confirm-merchant")).toContainText("Corner Cafe");
+  await expect(page.getByTestId("inbox-row")).toContainText("Corner Cafe");
   await page.screenshot({
     path: path.join(artifactsDir, "v4-deeplink-sheet.png"),
     fullPage: true,
   });
   await page.getByTestId("deeplink-confirm-save").click();
+  await page.getByRole("button", { name: "返回" }).click();
   await expect(page.getByTestId("home-page")).toBeVisible();
 });
 
@@ -88,7 +90,7 @@ test("記帳 v4：首頁 HK 主題、報表每月/所有", async ({ page }) => {
   });
 
   await page.getByTestId("tab-categories").click();
-  await expect(page.getByTestId("auto-record-help")).toBeVisible();
+  await expect(page.getByTestId("auto-record-wizard")).toBeVisible();
   await page.screenshot({
     path: path.join(artifactsDir, "v4-auto-record-help.png"),
     fullPage: true,

@@ -3,9 +3,11 @@ import { createSeedCategories, V2_CATEGORY_MIGRATIONS } from "../data/seed";
 import { isValidTransactionId } from "../lib/pwaSync/merge";
 import { newId } from "../lib/format";
 import type { OpeningBalanceSetting } from "../lib/openingBalance";
+import type { InboxImportItem } from "../lib/import/inboxTypes";
 import type { Category, LedgerBackup, MonthlyBudget, Transaction } from "../types";
 
 const OPENING_BALANCE_META_KEY = "openingBalance";
+const INBOX_AUTO_CONFIRM_META_KEY = "importInboxAutoConfirm";
 
 interface LedgerDB extends DBSchema {
   categories: {
@@ -24,10 +26,14 @@ interface LedgerDB extends DBSchema {
     key: string;
     value: { key: string; value: string };
   };
+  importInbox: {
+    key: string;
+    value: InboxImportItem;
+  };
 }
 
 const DB_NAME = "ledger-pwa";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise: Promise<IDBPDatabase<LedgerDB>> | null = null;
 
@@ -46,6 +52,9 @@ export function getDb(): Promise<IDBPDatabase<LedgerDB>> {
         }
         if (!db.objectStoreNames.contains("meta")) {
           db.createObjectStore("meta", { keyPath: "key" });
+        }
+        if (!db.objectStoreNames.contains("importInbox")) {
+          db.createObjectStore("importInbox", { keyPath: "id" });
         }
         if (oldVersion > 0 && oldVersion < 2) {
           // v2 category migration runs after upgrade via migrateV2Categories
@@ -190,6 +199,37 @@ export async function putBudget(budget: MonthlyBudget): Promise<void> {
 export async function deleteBudget(id: string): Promise<void> {
   const db = await getDb();
   await db.delete("budgets", id);
+}
+
+export async function listInboxImports(): Promise<InboxImportItem[]> {
+  const db = await getDb();
+  const rows = await db.getAll("importInbox");
+  rows.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return rows;
+}
+
+export async function putInboxImport(item: InboxImportItem): Promise<void> {
+  const db = await getDb();
+  await db.put("importInbox", item);
+}
+
+export async function deleteInboxImport(id: string): Promise<void> {
+  const db = await getDb();
+  await db.delete("importInbox", id);
+}
+
+export async function getInboxAutoConfirm(): Promise<boolean> {
+  const db = await getDb();
+  const row = await db.get("meta", INBOX_AUTO_CONFIRM_META_KEY);
+  return row?.value === "true";
+}
+
+export async function setInboxAutoConfirm(enabled: boolean): Promise<void> {
+  const db = await getDb();
+  await db.put("meta", {
+    key: INBOX_AUTO_CONFIRM_META_KEY,
+    value: enabled ? "true" : "false",
+  });
 }
 
 export async function exportBackup(): Promise<LedgerBackup> {

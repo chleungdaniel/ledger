@@ -116,8 +116,9 @@ test("首頁 HK 設計：月/所有、分組、FAB、眼睛、深層連結", asy
   await expect(page.getByTestId("home-page")).toBeVisible();
 
   await page.goto("./?add=1&amount=5.5&merchant=E2E%20Auto&type=expense&auto=1");
-  await expect(page.getByTestId("deeplink-confirm-sheet")).toBeVisible();
+  await expect(page.getByTestId("imports-inbox-page")).toBeVisible();
   await page.getByTestId("deeplink-confirm-save").click();
+  await page.getByRole("button", { name: "返回" }).click();
   await expect(page.getByTestId("home-page")).toBeVisible({ timeout: 15_000 });
   await page.getByTestId("home-period-picker").click();
   await page.getByTestId("home-scope-all").click();

@@ -7,6 +7,7 @@ interface HomeMenuDrawerProps {
   open: boolean;
   onClose: () => void;
   onOpenImport: () => void;
+  onOpenInbox: () => void;
   onNavigate: (tab: Tab) => void;
 }
 
@@ -14,6 +15,7 @@ export function HomeMenuDrawer({
   open,
   onClose,
   onOpenImport,
+  onOpenInbox,
   onNavigate,
 }: HomeMenuDrawerProps) {
   if (!open) return null;
@@ -30,6 +32,17 @@ export function HomeMenuDrawer({
         </button>
         <button type="button" className="hk-drawer__item" onClick={() => { onNavigate("categories"); onClose(); }}>
           分類
+        </button>
+        <button
+          type="button"
+          className="hk-drawer__item"
+          data-testid="open-imports-inbox"
+          onClick={() => {
+            onOpenInbox();
+            onClose();
+          }}
+        >
+          匯入紀錄
         </button>
         <button
           type="button"

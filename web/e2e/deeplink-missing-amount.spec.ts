@@ -5,8 +5,9 @@ const artifactsDir = process.env.ARTIFACTS_DIR ?? "/opt/cursor/artifacts/screens
 
 test("捷徑無金額時顯示確認畫面、提示與原始參數", async ({ page }) => {
   await page.goto("./?add=1&merchant=Octopus%20Card&auto=1&type=expense");
-  await expect(page.getByTestId("deeplink-confirm-sheet")).toBeVisible();
-  await expect(page.getByTestId("deeplink-missing-amount")).toContainText("捷徑未傳入金額");
+  await expect(page.getByTestId("imports-inbox-page")).toBeVisible();
+  await expect(page.getByTestId("inbox-row-detail")).toBeVisible();
+  await expect(page.getByTestId("deeplink-missing-amount")).toContainText("未解析到金額");
   await expect(page.getByTestId("deeplink-raw-params")).toContainText("merchant=Octopus");
   await expect(page.getByTestId("tx-amount")).toHaveValue("");
   await expect(page.getByTestId("tx-cat-交通")).toHaveClass(/active/);
