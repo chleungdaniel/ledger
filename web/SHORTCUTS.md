@@ -37,22 +37,40 @@ https://chleungdaniel.github.io/ledger/?add=1&text=【通知內文】&type=expen
 &auto=1&confirm=0
 ```
 
-## iOS 捷徑設定（收到通知時 — 推薦）
+## 一鍵加入捷徑（推薦）
 
-1. **捷徑** → **自動化** → **建立個人自動化** → **收到通知時**（Notification；需 iOS 27 或更新系統）。
+在 App 內 **自動記帳** 精靈步驟「加入捷徑」，或直接用下列安裝連結（iPhone Safari／主畫面 App）：
+
+- **安裝捷徑**：`shortcuts://import-shortcut?url=https%3A%2F%2Fchleungdaniel.github.io%2Fledger%2Fshortcuts%2Fledger-notification-import.shortcut&name=%E8%A8%98%E5%B8%B3%E5%8C%AF%E5%85%A5%E9%80%9A%E7%9F%A5`
+- **捷徑檔案（Pages 靜態）**：`https://chleungdaniel.github.io/ledger/shortcuts/ledger-notification-import.shortcut`
+- **捷徑名稱**：`記帳匯入通知`
+
+流程：點 **加入捷徑** → 跳轉「捷徑」App → 再按 **加入捷徑** → 回到記帳 App。捷徑會把傳入的文字 URL 編碼後開啟  
+`https://chleungdaniel.github.io/ledger/?add=1&text=…&type=expense`，項目進入 **匯入紀錄**。
+
+測試：安裝後在精靈「測試解析」點 **用已安裝捷徑測試**，或執行  
+`shortcuts://run-shortcut?name=記帳匯入通知&input=text&text=鐵路：HK$7.90`，應看到「鐵路」與 HK$7.90。
+
+## iOS 個人自動化（收到通知時 — 推薦）
+
+安裝捷徑後，建立 **收到通知時** 自動化（無法由網頁完全代你安裝，需在本機捷徑 App 完成）：
+
+1. **捷徑** → **自動化** → **建立個人自動化** → **收到通知時**（Notification；需 iOS 27 或更新系統），或開啟 `shortcuts://create-automation`。
 2. 選擇 App：**八達通**、**Wallet**、**PayMe**，以及你關心的銀行 App（可多選）。
 3. 執行方式選 **立即執行**（Run Immediately）。
-4. 新增動作 **文字**（Text），內容為（用變數選單插入 **通知內文**，勿手打方括號）：
+4. 新增動作 **執行捷徑**（Run Shortcut）→ 選 **記帳匯入通知**，並將觸發條件中的 **通知內文** 傳入捷徑（用變數選單，勿手打）。
+5. （選填）關閉「執行前先詢問」，減少多一層系統確認。
 
-   ```
-   https://chleungdaniel.github.io/ledger/?add=1&text=通知內文&type=expense
-   ```
+### 進階：手動「文字 + 開啟 URL」
 
-   - 「通知內文」= Shortcuts 在 **收到通知時** 觸發區塊提供的 **Notification Body**（中文介面常顯示「通知內文」）。
-   - 捷徑會自動 URL 編碼；若你手動組字串，請確保 `text=` 後為編碼後內容。
+若不想用預製捷徑，可手動新增 **文字** + **開啟 URL**：
 
-5. 新增動作 **開啟 URL**（Open URLs），輸入上一步的「文字」結果。
-6. （選填）關閉「執行前先詢問」，減少多一層系統確認。
+```
+https://chleungdaniel.github.io/ledger/?add=1&text=通知內文&type=expense
+```
+
+- 「通知內文」= Shortcuts 在 **收到通知時** 觸發區塊提供的 **Notification Body**（中文介面常顯示「通知內文」）。
+- 請確保 `text=` 後為 URL 編碼後內容（預製捷徑會自動編碼）。
 
 ### Shortcuts AI / 重建提示詞（通知流程，繁中）
 

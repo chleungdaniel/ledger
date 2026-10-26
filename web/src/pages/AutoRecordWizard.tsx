@@ -4,6 +4,13 @@ import {
   buildShortcutUrlTemplate,
 } from "../lib/deeplink";
 import { buildInboxTestUrl } from "../lib/import/inbox";
+import {
+  CREATE_NOTIFICATION_AUTOMATION_HREF,
+  notificationShortcutInstallHref,
+  openCreateNotificationAutomation,
+  openNotificationShortcutInstall,
+  runNotificationShortcutTestHref,
+} from "../lib/iosShortcuts";
 import { getInboxAutoConfirm, setInboxAutoConfirm } from "../db/database";
 
 const WIZARD_APPS_KEY = "autoRecordWizardApps";
@@ -34,13 +41,15 @@ export function AutoRecordWizard() {
   const [apps, setApps] = useState<string[]>(() => loadSelectedApps());
   const [autoConfirm, setAutoConfirm] = useState(false);
 
-  const notificationTemplate = buildNotificationShortcutUrlTemplate();
-  const transactionTemplate = buildShortcutUrlTemplate();
-  const testUrl = buildInboxTestUrl(
+  const ledgerOrigin =
     typeof window !== "undefined"
       ? new URL(import.meta.env.BASE_URL, window.location.origin).href
-      : undefined,
-  );
+      : undefined;
+  const notificationTemplate = buildNotificationShortcutUrlTemplate(ledgerOrigin);
+  const transactionTemplate = buildShortcutUrlTemplate(ledgerOrigin);
+  const testUrl = buildInboxTestUrl(ledgerOrigin);
+  const shortcutInstallHref = notificationShortcutInstallHref(ledgerOrigin);
+  const shortcutRunTestHref = runNotificationShortcutTestHref();
 
   useEffect(() => {
     void getInboxAutoConfirm().then(setAutoConfirm);
@@ -126,25 +135,45 @@ export function AutoRecordWizard() {
 
         {step === 1 && (
           <div className="wizard-panel" data-testid="wizard-step-shortcut">
-            <p className="help-subhead">複製通知 URL 模板</p>
-            <pre className="url-template" data-testid="shortcut-notification-url-template">
-              {notificationTemplate}
-            </pre>
-            <button
-              type="button"
-              className="btn-secondary"
-              data-testid="copy-notification-shortcut-url"
-              onClick={() => void copyText("notification", notificationTemplate)}
+            <p>
+              在 iPhone 點<strong>加入捷徑</strong>，於「捷徑」App 再按一次加入，即可安裝
+              <strong>記帳匯入通知</strong>。之後在個人自動化執行此捷徑並傳入通知內文。
+            </p>
+            <a
+              className="btn-primary wizard-install-shortcut"
+              href={shortcutInstallHref}
+              data-testid="wizard-add-shortcut"
+              onClick={(e) => {
+                e.preventDefault();
+                openNotificationShortcutInstall(ledgerOrigin);
+              }}
             >
-              {copied === "notification" ? "已複製" : "複製通知 URL 模板"}
-            </button>
+              加入捷徑
+            </a>
             <p className="hint">
-              在「文字」動作插入觸發區的<strong>通知內文</strong>變數到 <code>text=</code>，再用「開啟 URL」。
-              八達通請勿只用「交易」觸發（金額常空白）。
+              若無法開啟，請用 Safari 開啟本頁再試。安裝後可到步驟 5 建立「收到通知時」自動化。
             </p>
             <details>
-              <summary>次要：交易（Transaction）模板</summary>
-              <pre className="url-template">{transactionTemplate}</pre>
+              <summary>進階：手動組 URL 模板</summary>
+              <pre className="url-template" data-testid="shortcut-notification-url-template">
+                {notificationTemplate}
+              </pre>
+              <button
+                type="button"
+                className="btn-secondary"
+                data-testid="copy-notification-shortcut-url"
+                onClick={() => void copyText("notification", notificationTemplate)}
+              >
+                {copied === "notification" ? "已複製" : "複製通知 URL 模板"}
+              </button>
+              <p className="hint">
+                在「文字」動作插入觸發區的<strong>通知內文</strong>變數到 <code>text=</code>，再用「開啟 URL」。
+                八達通請勿只用「交易」觸發（金額常空白）。
+              </p>
+              <details>
+                <summary>次要：交易（Transaction）模板</summary>
+                <pre className="url-template">{transactionTemplate}</pre>
+              </details>
             </details>
             <div className="wizard-nav">
               <button type="button" className="btn-text" onClick={() => setStep(0)}>上一步</button>
@@ -171,6 +200,13 @@ export function AutoRecordWizard() {
               data-testid="wizard-run-test"
             >
               立即執行測試
+            </a>
+            <a
+              className="btn-secondary wizard-open-test"
+              href={shortcutRunTestHref}
+              data-testid="wizard-run-shortcut-test"
+            >
+              用已安裝捷徑測試（鐵路 HK$7.90）
             </a>
             <p className="hint">應出現「匯入紀錄」並含「鐵路」HK$7.90。</p>
             <div className="wizard-nav">
@@ -208,13 +244,26 @@ export function AutoRecordWizard() {
 
         {step === 4 && (
           <div className="wizard-panel" data-testid="wizard-step-automation">
+            <a
+              className="btn-primary"
+              href={CREATE_NOTIFICATION_AUTOMATION_HREF}
+              data-testid="wizard-create-automation"
+              onClick={(e) => {
+                e.preventDefault();
+                openCreateNotificationAutomation();
+              }}
+            >
+              建立個人自動化
+            </a>
             <ol className="help-steps">
-              <li>捷徑 → 自動化 → 建立個人自動化 → <strong>收到通知時</strong>。</li>
+              <li>捷徑 → 自動化 → 建立個人自動化 → <strong>收到通知時</strong>（或點上方按鈕）。</li>
               <li>
                 選擇 App：{appLabels || "Wallet、八達通、PayMe 等"}。
               </li>
               <li>執行方式：<strong>立即執行</strong>（Run Immediately）。</li>
-              <li>動作：「文字」組 URL +「開啟 URL」（見步驟 2 模板）。</li>
+              <li>
+                動作：<strong>執行捷徑</strong> → 選「記帳匯入通知」，並傳入<strong>通知內文</strong>（勿手打，用變數）。
+              </li>
               <li>（選填）關閉「執行前先詢問」。</li>
             </ol>
             <p className="hint">

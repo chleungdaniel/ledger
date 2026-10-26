@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && TZ=Asia/Hong_Kong vitest run && vite build",
+    "shortcuts:build": "node scripts/build-notification-shortcut.cjs",
+    "build": "npm run shortcuts:build && tsc --noEmit && TZ=Asia/Hong_Kong vitest run && vite build",
     "preview": "vite preview",
     "test": "TZ=Asia/Hong_Kong vitest run",
     "test:e2e": "playwright test",
@@ -19,6 +20,7 @@
     "tesseract.js": "^6.0.1"
   },
   "devDependencies": {
+    "@joshfarrant/shortcuts-js": "^0.6.0",
     "@playwright/test": "^1.51.0",
     "@resvg/resvg-js": "^2.6.2",
     "@types/react": "^19.0.10",
