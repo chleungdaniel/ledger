@@ -18,7 +18,7 @@ import {
   putCategory,
   putTransaction,
   setOpeningBalance,
-} from "../db/database";
+} from "../db/index";
 import type { OpeningBalanceSetting } from "../lib/openingBalance";
 import { mergeSyncPayload, type SyncPayload } from "../lib/pwaSync";
 import { newId } from "../lib/format";

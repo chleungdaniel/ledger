@@ -1,0 +1,13 @@
+{
+  "name": "ledger",
+  "private": true,
+  "description": "記帳 PWA (GitHub Pages) + Cursor Live App (Postgres)",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm ci --prefix web && npm run build:live --prefix web && npm ci --prefix server && npm run build --prefix server",
+    "start": "node server/dist/index.js",
+    "dev:live": "npm run build:live --prefix web && LEDGER_DEV_USER_ID=dev-local npm run dev --prefix server"
+  }
+}

@@ -2268,3 +2268,24 @@ body {
   border-radius: 10px;
   background: color-mix(in srgb, var(--accent) 8%, var(--bg));
 }
+
+.cloud-migrate {
+  margin: 12px 16px 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--separator);
+  background: color-mix(in srgb, var(--graphite) 6%, var(--bg-elevated));
+}
+
+.cloud-migrate__title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.cloud-migrate__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}

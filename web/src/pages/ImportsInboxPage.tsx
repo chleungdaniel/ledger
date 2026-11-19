@@ -4,7 +4,7 @@ import {
   deleteInboxImport,
   listInboxImports,
   putInboxImport,
-} from "../db/database";
+} from "../db/index";
 import { localNowIso } from "../lib/datetime";
 import { formatCurrency, parseAmount } from "../lib/format";
 import { annotateInboxDuplicates } from "../lib/import/inbox";

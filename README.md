@@ -37,6 +37,10 @@ npm run preview
 # 瀏覽 http://127.0.0.1:41789/ledger/
 ```
 
+## Cursor Live App（雲端同步 · 預覽用）
+
+同一 repo 另含 Postgres 版後端與 Cursor 登入，供 **Cursor Live App** 預覽／發佈（不取代 GitHub Pages）。說明見 [docs/LIVE_APP.md](docs/LIVE_APP.md)。
+
 ## 授權
 
 私人專案；公開 Pages 站僅供個人使用。
