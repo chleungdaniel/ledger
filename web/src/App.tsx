@@ -11,6 +11,7 @@ import { CategoriesPage } from "./pages/CategoriesPage";
 import { HomePage } from "./pages/HomePage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { ScreenshotImportPage } from "./pages/ScreenshotImportPage";
+import { CloudMigrationPrompt } from "./components/CloudMigrationPrompt";
 
 type Tab = "home" | "budget" | "reports" | "categories";
 
@@ -58,6 +59,7 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <CloudMigrationPrompt />
       <DeepLinkIngestor
         deepLink={deepLink}
         onConsumed={consumeDeepLink}

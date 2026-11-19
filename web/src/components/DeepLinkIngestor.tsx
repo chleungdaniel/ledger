@@ -4,7 +4,7 @@ import {
   getInboxAutoConfirm,
   listInboxImports,
   putInboxImport,
-} from "../db/database";
+} from "../db/index";
 import {
   annotateInboxDuplicates,
   inboxItemFromDeepLink,

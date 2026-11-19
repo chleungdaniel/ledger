@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import type { LedgerBackup } from "../types";
+import { isLiveAppMode } from "../lib/appMode";
 import { useLedger } from "../store/LedgerContext";
 
 export function BackupSection() {
@@ -40,7 +41,9 @@ export function BackupSection() {
       <h2>資料備份</h2>
       <div className="card backup-card">
         <p className="hint">
-          資料儲存在此裝置的 IndexedDB。若 Safari 清除網站資料會遺失紀錄，請定期匯出備份。
+          {isLiveAppMode()
+            ? "雲端版會將記帳資料同步至 Postgres（以您的 Cursor 帳號隔離）。此裝置的 IndexedDB 仍可手動上傳合併；JSON 備份／還原仍可使用。"
+            : "資料儲存在此裝置的 IndexedDB。若 Safari 清除網站資料會遺失紀錄，請定期匯出備份。"}
         </p>
         <button type="button" className="btn-primary" data-testid="export-backup" onClick={() => void handleExport()}>
           匯出 JSON

@@ -11,7 +11,7 @@ import {
   openNotificationShortcutInstall,
   runNotificationShortcutTestHref,
 } from "../lib/iosShortcuts";
-import { getInboxAutoConfirm, setInboxAutoConfirm } from "../db/database";
+import { getInboxAutoConfirm, setInboxAutoConfirm } from "../db/index";
 
 const WIZARD_APPS_KEY = "autoRecordWizardApps";
 

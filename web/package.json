@@ -7,6 +7,7 @@
     "dev": "vite",
     "shortcuts:build": "node scripts/build-notification-shortcut.cjs",
     "build": "npm run shortcuts:build && tsc --noEmit && TZ=Asia/Hong_Kong vitest run && vite build",
+    "build:live": "npm run shortcuts:build && tsc --noEmit && TZ=Asia/Hong_Kong vitest run && vite build --mode live",
     "preview": "vite preview",
     "test": "TZ=Asia/Hong_Kong vitest run",
     "test:e2e": "playwright test",

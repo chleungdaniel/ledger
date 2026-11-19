@@ -3,8 +3,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
-export default defineConfig({
-  base: "/ledger/",
+export default defineConfig(({ mode }) => ({
+  base: mode === "live" ? "/" : "/ledger/",
   plugins: [
     react(),
     VitePWA({
@@ -33,6 +33,7 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    sourcemap: mode !== "live",
   },
   server: {
     port: 41789,
@@ -49,4 +50,4 @@ export default defineConfig({
       TZ: "Asia/Hong_Kong",
     },
   },
-});
+}));
